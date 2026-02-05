@@ -1,7 +1,6 @@
 import "dotenv/config";
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon, NeonQueryFunction } from "@neondatabase/serverless";
-
 // Lazy initialization to prevent build-time errors
 let sql: NeonQueryFunction<false, false> | null = null;
 let dbInstance: ReturnType<typeof drizzle> | null = null;
