@@ -1,7 +1,37 @@
 import { relations } from "drizzle-orm";
 import { foreignKey } from "drizzle-orm/gel-core";
-import { pgTable, text, timestamp, boolean, index, integer, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, index, integer, varchar, uuid, jsonb } from "drizzle-orm/pg-core";
 
+// Project Schema
+
+export const projects = pgTable("projects", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    apiKey: text("api_key").notNull().unique(),
+    userId: text("user_id").references(()=>user.id),
+    createdAt: timestamp("created_at").defaultNow()
+});
+
+// Feature Schema
+export const features = pgTable("features", {
+   id : uuid("id").defaultRandom().primaryKey(),
+   projectId: uuid("project_id").references(()=>projects.id),
+   key: text("key").notNull(),
+   name: text("name"),
+   description: text("description"),
+   type: text("text"),
+   createdAt: timestamp("created_at").defaultNow()
+});
+
+//Feature Environments
+export const featureEnvironments = pgTable("featureEnvironments", {
+   id: uuid("id").defaultRandom().primaryKey(),
+   featureId: uuid("feature_id").references(()=>features.id),
+   environment: text("environment"),
+   status: boolean("status"),
+   rolloutPercentage: integer("rolloutPercentage").default(0),
+   rules: jsonb("rules")
+});
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
