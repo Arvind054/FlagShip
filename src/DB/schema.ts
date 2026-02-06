@@ -30,7 +30,13 @@ export const featureEnvironments = pgTable("featureEnvironments", {
    environment: text("environment"),
    status: boolean("status"),
    rolloutPercentage: integer("rolloutPercentage").default(0),
-   rules: jsonb("rules")
+   rules: jsonb("rules").$type<
+  {
+    field: string;
+    operator: string;
+    value: any;
+  }[]
+>(),
 });
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
