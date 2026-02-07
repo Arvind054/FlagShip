@@ -1,36 +1,163 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Flagship
 
-## Getting Started
+**Ship Features with Confidence**
 
-First, run the development server:
+Flagship is a modern, open-source feature flag management platform that gives you complete control over feature releases, A/B testing, and gradual rollouts.
+
+---
+
+## What is Flagship?
+
+Flagship is a self-hosted feature flag service that allows development teams to:
+
+- **Toggle features on/off** without deploying new code
+- **Gradually roll out features** to a percentage of users
+- **Target specific users** based on custom rules and attributes
+- **Manage multiple environments** (development, staging, production)
+- **Track feature flag changes** with comprehensive audit logs
+
+Instead of risky big-bang releases, ship features safely by controlling who sees what, when.
+
+---
+
+## Key Features
+
+### Feature Flag Management
+- Create and organize feature flags by project
+- Support for multiple flag types: **Release**, **Experiment**, and **Ops**
+- Toggle flags instantly across environments
+
+### Percentage-Based Rollouts
+- Gradually release features to 1%, 10%, 50%, or any percentage of users
+- Consistent user experience with deterministic bucketing (same user always gets the same experience)
+
+### Targeting Rules
+- Define rules based on user attributes (e.g., country, plan, user ID)
+- Operators include: `equals`, `not_equals`, `in`, `greater_than`, `less_than`
+- Stack multiple conditions for precise targeting
+
+### Multi-Environment Support
+- Separate configurations for **Development**, **Staging**, and **Production**
+- Different rollout percentages and rules per environment
+- Environment-specific status toggles
+
+### High-Performance API
+- Fast feature evaluation endpoint (`/api/evaluate`)
+- **Redis caching** for instant responses (120s TTL)
+- Simple JSON API with API key authentication
+
+### Modern Dashboard
+- Clean, professional SaaS interface inspired by Vercel and Linear
+- Real-time flag status overview
+- Activity logs and audit trail
+- Project organization with API key management
+
+---
+
+## Advantages
+
+| Advantage | Description |
+|-----------|-------------|
+| **Reduce Risk** | Roll back features instantly without redeploying |
+| **Ship Faster** | Decouple deployment from release |
+| **Test in Production** | Safely experiment with real users |
+| **Self-Hosted** | Full control over your data and infrastructure |
+| **Developer-Friendly** | Simple REST API, easy integration |
+| **Scalable** | Redis caching ensures low-latency evaluations |
+
+---
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Database**: PostgreSQL (via Neon Serverless)
+- **ORM**: Drizzle ORM
+- **Cache**: Redis (ioredis)
+- **Auth**: Better Auth
+- **UI**: Tailwind CSS 4 + Radix UI + Lucide Icons
+- **Validation**: Zod
+
+---
+
+## Quick Start
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Set Up Environment Variables
+
+Create a `.env` file with your database and Redis configuration.
+
+### 3. Run Database Migrations
+
+```bash
+npx drizzle-kit push
+```
+
+### 4. Start the Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 5. Access the Dashboard
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## API Usage
 
-To learn more about Next.js, take a look at the following resources:
+Evaluate a feature flag:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+POST /api/evaluate
+Content-Type: application/json
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+{
+  "apiKey": "your-project-api-key",
+  "featureKey": "dark-mode",
+  "environment": "production",
+  "user": {
+    "id": "user-123",
+    "country": "US",
+    "plan": "pro"
+  }
+}
+```
 
-## Deploy on Vercel
+Response:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```json
+{
+  "enabled": true
+}
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Dashboard Pages
+
+| Page | Description |
+|------|-------------|
+| `/dashboard` | Overview with stats and recent flag activity |
+| `/projects` | Manage projects and API keys |
+| `/flags` | List, search, and filter feature flags |
+| `/flags/[id]` | Flag details, targeting rules, and environment settings |
+| `/environments` | Environment configuration |
+| `/logs` | Activity and audit logs |
+| `/settings` | Account, billing, and integrations |
+
+---
+
+## License
+
+MIT
+
+---
+
+**Flagship** — Release with confidence, iterate with speed.
