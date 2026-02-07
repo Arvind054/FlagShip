@@ -1,4 +1,5 @@
 import { evaluateRules } from "@/lib/evaluateRules";
+import { redis } from "@/lib/radis";
 import { isInRollout } from "@/lib/rolloutPercenatge";
 import { db } from "@/src/DB";
 import { featureEnvironments, features, projects } from "@/src/DB/schema";
@@ -9,6 +10,12 @@ export async function POST(req: NextRequest) {
     try {
         const { apiKey, featureKey, environment, user } = await req.json();
 
+        // Checking for Cache
+        const cacheKey = `flag:${apiKey}:${featureKey}:${environment}:${user?.id}`;
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+            return NextResponse.json(JSON.parse(cached));
+        }
         // Validation for feature ->project
         const project = await db.select()
             .from(projects)
@@ -33,12 +40,15 @@ export async function POST(req: NextRequest) {
 
         const rules = envConfig[0].rules;
         if (rules && !evaluateRules(rules, user)) {
-            return NextResponse.json({ enabled: true });
+            await redis.set(cacheKey, JSON.stringify({ enabled: false }), 'EX', 60);
+            return NextResponse.json({ enabled: false });
         }
         const rollOut = envConfig[0].rolloutPercentage;
         if (!isInRollout(user?.id, rollOut)) {
-            return NextResponse.json({ enabled: true });
+            await redis.set(cacheKey, JSON.stringify({ enabled: false }), 'EX', 60);
+            return NextResponse.json({ enabled: false });
         }
+        await redis.set(cacheKey, JSON.stringify({ enabled: true }), 'EX', 60);
         return NextResponse.json({ enabled: true });
 
     } catch (err) {
