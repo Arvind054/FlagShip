@@ -11,44 +11,65 @@ export async function POST(req: NextRequest) {
         const { apiKey, featureKey, environment, user } = await req.json();
 
         // Checking for Cache
-        const cacheKey = `flag:${apiKey}:${featureKey}:${environment}:${user?.id}`;
-        const cached = await redis.get(cacheKey);
-        if (cached) {
-            return NextResponse.json(JSON.parse(cached));
+        const cacheKey = `flag:${apiKey}:${featureKey}:${environment}`;
+        let config;
+        try {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                config = JSON.parse(cached);
+            }
+        } catch (err) {
+            console.log("error occured ", err);
         }
         // Validation for feature ->project
-        const project = await db.select()
-            .from(projects)
-            .where(eq(projects.apiKey, apiKey))
-            .limit(1);
+        if (!config) {
+            const result = await db
+                .select({
+                    status: featureEnvironments.status,
+                    rolloutPercentage: featureEnvironments.rolloutPercentage,
+                    rules: featureEnvironments.rules,
+                })
+                .from(features)
+                .innerJoin(projects, eq(features.projectId, projects.id))
+                .innerJoin(
+                    featureEnvironments,
+                    eq(featureEnvironments.featureId, features.id)
+                )
+                .where(
+                    and(
+                        eq(projects.apiKey, apiKey),
+                        eq(features.key, featureKey),
+                        eq(featureEnvironments.environment, environment)
+                    )
+                )
+                .limit(1);
 
-        if (!project.length) return NextResponse.json({ enabled: false });
+            if (!result.length) {
+                return NextResponse.json({ enabled: false });
+            }
 
-        // Validate feature
-        const feature = await db.select()
-            .from(features)
-            .where(and(eq(features.id, featureKey), eq(features.projectId, project[0]?.id)))
-            .limit(1);
+            config = result[0];
 
-        if (!feature.length) return NextResponse.json({ enabled: false });
-        // Validate feature environment
-        const envConfig = await db.select()
-            .from(featureEnvironments)
-            .where(and(eq(featureEnvironments.featureId, feature[0].id), featureEnvironments.environment, environment))
-            .limit(1);
-        if (!envConfig.length || !envConfig[0].status) return NextResponse.json({ enabled: false });
+            // Cache config only
+            try {
+                await redis.set(cacheKey, JSON.stringify(config), "EX", 120);
+            } catch (err) {
+                console.error("Redis set failed:", err);
+            }
+        }
 
-        const rules = envConfig[0].rules;
-        if (rules && !evaluateRules(rules, user)) {
-            await redis.set(cacheKey, JSON.stringify({ enabled: false }), 'EX', 60);
+        if (!config.status) {
             return NextResponse.json({ enabled: false });
         }
-        const rollOut = envConfig[0].rolloutPercentage;
-        if (!isInRollout(user?.id, rollOut)) {
-            await redis.set(cacheKey, JSON.stringify({ enabled: false }), 'EX', 60);
+
+        if (config.rules && !evaluateRules(config.rules, user)) {
             return NextResponse.json({ enabled: false });
         }
-        await redis.set(cacheKey, JSON.stringify({ enabled: true }), 'EX', 60);
+
+        if (!isInRollout(user?.id, config.rolloutPercentage)) {
+            return NextResponse.json({ enabled: false });
+        }
+
         return NextResponse.json({ enabled: true });
 
     } catch (err) {
