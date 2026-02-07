@@ -12,7 +12,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { mockFlags, mockProjects, formatDateTime } from "@/lib/mock-data";
-import { Activity, Flag, Zap } from "lucide-react";
+import { Activity, Flag, Zap, TrendingUp, ArrowUpRight, MoreHorizontal } from "lucide-react";
+import Link from "next/link";
 
 export default function DashboardPage() {
   const recentFlags = mockFlags.slice(0, 5);
@@ -26,40 +27,49 @@ export default function DashboardPage() {
       label: "Total Projects",
       value: mockProjects.length,
       icon: Activity,
-      color: "bg-blue-50",
-      textColor: "text-blue-600",
+      change: "+2 this month",
+      gradient: "from-blue-500 to-blue-600",
+      bgGradient: "from-blue-500/10 to-blue-600/5",
     },
     {
       label: "Total Flags",
       value: mockFlags.length,
       icon: Flag,
-      color: "bg-purple-50",
-      textColor: "text-purple-600",
+      change: "+5 this week",
+      gradient: "from-purple-500 to-purple-600",
+      bgGradient: "from-purple-500/10 to-purple-600/5",
     },
     {
       label: "Active Flags",
       value: activeFlags,
       icon: Zap,
-      color: "bg-green-50",
-      textColor: "text-green-600",
+      change: "83% active",
+      gradient: "from-green-500 to-emerald-600",
+      bgGradient: "from-green-500/10 to-emerald-600/5",
     },
     {
       label: "Partial Rollout",
       value: partialRolloutFlags,
-      icon: Activity,
-      color: "bg-orange-50",
-      textColor: "text-orange-600",
+      icon: TrendingUp,
+      change: "In testing",
+      gradient: "from-orange-500 to-amber-500",
+      bgGradient: "from-orange-500/10 to-amber-500/5",
     },
   ];
 
   return (
     <div className="p-8 space-y-8">
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500 mt-1">
-          Overview of your feature flags and projects
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Overview of your feature flags and projects
+          </p>
+        </div>
+        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25">
+          + Create Flag
+        </Button>
       </div>
 
       {/* Stats Grid */}
@@ -67,19 +77,24 @@ export default function DashboardPage() {
         {stats.map((stat, idx) => {
           const Icon = stat.icon;
           return (
-            <Card key={idx} className="border-slate-200">
-              <CardContent className="pt-6">
+            <Card key={idx} className="border-border bg-card overflow-hidden relative group hover:shadow-lg transition-shadow duration-300">
+              <div className={`absolute inset-0 bg-linear-to-br ${stat.bgGradient} opacity-50`} />
+              <CardContent className="pt-6 relative">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">
+                    <p className="text-sm font-medium text-muted-foreground">
                       {stat.label}
                     </p>
-                    <p className={`text-3xl font-bold mt-2 ${stat.textColor}`}>
+                    <p className="text-4xl font-bold mt-2 text-foreground">
                       {stat.value}
                     </p>
+                    <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                      <ArrowUpRight className="w-3 h-3 text-green-500" />
+                      {stat.change}
+                    </p>
                   </div>
-                  <div className={`p-3 rounded-lg ${stat.color}`}>
-                    <Icon className={`w-6 h-6 ${stat.textColor}`} />
+                  <div className={`p-3 rounded-xl bg-linear-to-br ${stat.gradient} shadow-lg`}>
+                    <Icon className="w-6 h-6 text-white" />
                   </div>
                 </div>
               </CardContent>
@@ -89,29 +104,35 @@ export default function DashboardPage() {
       </div>
 
       {/* Recently Updated Flags */}
-      <Card className="border-slate-200">
-        <CardHeader className="border-b border-slate-200">
-          <CardTitle>Recently Updated Flags</CardTitle>
+      <Card className="border-border bg-card">
+        <CardHeader className="border-b border-border flex-row items-center justify-between">
+          <CardTitle className="text-foreground">Recently Updated Flags</CardTitle>
+          <Link href="/flags">
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+              View All
+              <ArrowUpRight className="w-4 h-4 ml-1" />
+            </Button>
+          </Link>
         </CardHeader>
         <CardContent className="pt-0">
           <Table>
             <TableHeader>
-              <TableRow className="border-b border-slate-200">
-                <TableHead className="text-slate-600">Feature Key</TableHead>
-                <TableHead className="text-slate-600">Type</TableHead>
-                <TableHead className="text-slate-600">Status</TableHead>
-                <TableHead className="text-slate-600">Rollout</TableHead>
-                <TableHead className="text-slate-600">Last Updated</TableHead>
-                <TableHead className="text-slate-600">Actions</TableHead>
+              <TableRow className="border-b border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground">Feature Key</TableHead>
+                <TableHead className="text-muted-foreground">Type</TableHead>
+                <TableHead className="text-muted-foreground">Status</TableHead>
+                <TableHead className="text-muted-foreground">Rollout</TableHead>
+                <TableHead className="text-muted-foreground">Last Updated</TableHead>
+                <TableHead className="text-muted-foreground">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {recentFlags.map((flag) => (
-                <TableRow key={flag.id} className="border-b border-slate-100">
+                <TableRow key={flag.id} className="border-b border-border/50 hover:bg-accent/50">
                   <TableCell>
                     <div>
-                      <p className="font-medium text-slate-900">{flag.key}</p>
-                      <p className="text-xs text-slate-500">{flag.name}</p>
+                      <p className="font-medium text-foreground">{flag.key}</p>
+                      <p className="text-xs text-muted-foreground">{flag.name}</p>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -119,10 +140,10 @@ export default function DashboardPage() {
                       variant="outline"
                       className={
                         flag.type === "release"
-                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
                           : flag.type === "experiment"
-                          ? "bg-purple-50 text-purple-700 border-purple-200"
-                          : "bg-orange-50 text-orange-700 border-orange-200"
+                          ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                          : "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
                       }
                     >
                       {flag.type}
@@ -133,37 +154,39 @@ export default function DashboardPage() {
                       variant="outline"
                       className={
                         flag.status === "on"
-                          ? "bg-green-50 text-green-700 border-green-200"
-                          : "bg-slate-50 text-slate-700 border-slate-200"
+                          ? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
+                          : "bg-muted text-muted-foreground border-border"
                       }
                     >
                       {flag.status.toUpperCase()}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="flex items-center gap-3">
+                      <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-blue-500 transition-all"
+                          className="h-full bg-linear-to-r from-primary to-blue-400 transition-all"
                           style={{ width: `${flag.rollout}%` }}
                         />
                       </div>
-                      <span className="text-sm font-medium text-slate-600">
+                      <span className="text-sm font-medium text-foreground w-10">
                         {flag.rollout}%
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm text-slate-600">
+                  <TableCell className="text-sm text-muted-foreground">
                     {formatDateTime(flag.lastUpdated)}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                    >
-                      View
-                    </Button>
+                    <Link href={`/flags/${flag.id}`}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary hover:text-primary hover:bg-primary/10"
+                      >
+                        View
+                      </Button>
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))}

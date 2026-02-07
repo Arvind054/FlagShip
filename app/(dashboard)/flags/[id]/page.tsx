@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { mockFlags, formatDateTime, formatDate } from "@/lib/mock-data";
-import { ChevronLeft, Edit2, MoreVertical } from "lucide-react";
+import { ChevronLeft, Edit2, MoreVertical, Flag, Info, Target, Layers, History } from "lucide-react";
 
 type PageProps = {
   params: {
@@ -56,36 +56,41 @@ export default function FlagDetailsPage({ params }: PageProps) {
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
           <Link href="/flags">
-            <Button variant="ghost" size="icon" className="text-slate-400">
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-accent">
               <ChevronLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-slate-900">{flag.name}</h1>
-              <Badge
-                variant="outline"
-                className={
-                  flag.type === "release"
-                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                    : flag.type === "experiment"
-                    ? "bg-purple-50 text-purple-700 border-purple-200"
-                    : "bg-orange-50 text-orange-700 border-orange-200"
-                }
-              >
-                {flag.type}
-              </Badge>
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-linear-to-br from-primary to-blue-400 shadow-lg shadow-primary/25">
+              <Flag className="w-6 h-6 text-white" />
             </div>
-            <p className="text-slate-500 mt-1 font-mono text-sm">
-              {flag.key}
-            </p>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-foreground">{flag.name}</h1>
+                <Badge
+                  variant="outline"
+                  className={
+                    flag.type === "release"
+                      ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                      : flag.type === "experiment"
+                      ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                      : "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
+                  }
+                >
+                  {flag.type}
+                </Badge>
+              </div>
+              <p className="text-muted-foreground mt-1 font-mono text-sm">
+                {flag.key}
+              </p>
+            </div>
           </div>
         </div>
 
         <Button
           variant="ghost"
           size="icon"
-          className="text-slate-400 hover:text-slate-600"
+          className="text-muted-foreground hover:text-foreground hover:bg-accent"
         >
           <MoreVertical className="w-5 h-5" />
         </Button>
@@ -93,29 +98,33 @@ export default function FlagDetailsPage({ params }: PageProps) {
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="border-b border-slate-200 bg-transparent p-0">
+        <TabsList className="border-b border-border bg-transparent p-0 h-auto">
           <TabsTrigger
             value="overview"
-            className="border-b-2 border-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none"
+            className="border-b-2 border-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground text-muted-foreground rounded-none px-4 py-2"
           >
+            <Info className="w-4 h-4 mr-2" />
             Overview
           </TabsTrigger>
           <TabsTrigger
             value="targeting"
-            className="border-b-2 border-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none"
+            className="border-b-2 border-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground text-muted-foreground rounded-none px-4 py-2"
           >
+            <Target className="w-4 h-4 mr-2" />
             Targeting Rules
           </TabsTrigger>
           <TabsTrigger
             value="environments"
-            className="border-b-2 border-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none"
+            className="border-b-2 border-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground text-muted-foreground rounded-none px-4 py-2"
           >
+            <Layers className="w-4 h-4 mr-2" />
             Environments
           </TabsTrigger>
           <TabsTrigger
             value="audit"
-            className="border-b-2 border-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none"
+            className="border-b-2 border-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground text-muted-foreground rounded-none px-4 py-2"
           >
+            <History className="w-4 h-4 mr-2" />
             Audit Logs
           </TabsTrigger>
         </TabsList>
@@ -123,69 +132,71 @@ export default function FlagDetailsPage({ params }: PageProps) {
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border-slate-200">
+            <Card className="border-border bg-card">
               <CardHeader>
-                <CardTitle className="text-lg">Basic Information</CardTitle>
+                <CardTitle className="text-lg text-foreground">Basic Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium text-slate-600">
+                  <Label className="text-sm font-medium text-muted-foreground">
                     Name
                   </Label>
-                  <p className="text-slate-900 mt-1">{flag.name}</p>
+                  <p className="text-foreground mt-1">{flag.name}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-slate-600">
+                  <Label className="text-sm font-medium text-muted-foreground">
                     Key
                   </Label>
-                  <p className="text-slate-900 font-mono mt-1">{flag.key}</p>
+                  <p className="text-foreground font-mono mt-1 bg-muted px-2 py-1 rounded inline-block">{flag.key}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-slate-600">
+                  <Label className="text-sm font-medium text-muted-foreground">
                     Type
                   </Label>
-                  <Badge
-                    variant="outline"
-                    className={
-                      flag.type === "release"
-                        ? "bg-blue-50 text-blue-700 border-blue-200"
-                        : flag.type === "experiment"
-                        ? "bg-purple-50 text-purple-700 border-purple-200"
-                        : "bg-orange-50 text-orange-700 border-orange-200"
-                    }
-                  >
-                    {flag.type}
-                  </Badge>
+                  <div className="mt-1">
+                    <Badge
+                      variant="outline"
+                      className={
+                        flag.type === "release"
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                          : flag.type === "experiment"
+                          ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                          : "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
+                      }
+                    >
+                      {flag.type}
+                    </Badge>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-slate-200">
+            <Card className="border-border bg-card">
               <CardHeader>
-                <CardTitle className="text-lg">Metadata</CardTitle>
+                <CardTitle className="text-lg text-foreground">Metadata</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium text-slate-600">
+                  <Label className="text-sm font-medium text-muted-foreground">
                     Created
                   </Label>
-                  <p className="text-slate-900 mt-1">
+                  <p className="text-foreground mt-1">
                     {formatDate(flag.createdAt)}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-slate-600">
+                  <Label className="text-sm font-medium text-muted-foreground">
                     Last Updated
                   </Label>
-                  <p className="text-slate-900 mt-1">
+                  <p className="text-foreground mt-1">
                     {formatDateTime(flag.lastUpdated)}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-slate-600">
+                  <Label className="text-sm font-medium text-muted-foreground">
                     Description
                   </Label>
-                  <p className="text-slate-900 mt-1">{flag.description}</p>
+                  <p className="text-foreground mt-1">{flag.description}</p>
                 </div>
               </CardContent>
             </Card>
@@ -194,14 +205,17 @@ export default function FlagDetailsPage({ params }: PageProps) {
 
         {/* Targeting Rules Tab */}
         <TabsContent value="targeting" className="space-y-6">
-          <Card className="border-slate-200">
+          <Card className="border-border bg-card">
             <CardHeader>
-              <CardTitle className="text-lg">Targeting Rules</CardTitle>
+              <CardTitle className="text-lg text-foreground">Targeting Rules</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8">
-                <p className="text-slate-500 mb-4">No rules configured yet</p>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+              <div className="text-center py-12">
+                <div className="p-4 rounded-full bg-muted inline-block mb-4">
+                  <Target className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground mb-4">No rules configured yet</p>
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
                   + Add Rule
                 </Button>
               </div>
@@ -213,32 +227,33 @@ export default function FlagDetailsPage({ params }: PageProps) {
         <TabsContent value="environments" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Dev Environment */}
-            <Card className="border-slate-200">
-              <CardHeader>
+            <Card className="border-border bg-card overflow-hidden relative">
+              <div className="absolute inset-0 bg-linear-to-br from-slate-500/5 to-slate-600/5 opacity-50" />
+              <CardHeader className="relative">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Development</CardTitle>
+                  <CardTitle className="text-lg text-foreground">Development</CardTitle>
                   <Badge
                     variant="outline"
-                    className="bg-slate-100 text-slate-700 border-slate-200"
+                    className="bg-muted text-muted-foreground border-border"
                   >
                     dev
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 relative">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="font-medium text-slate-700">Status</Label>
+                    <Label className="font-medium text-muted-foreground">Status</Label>
                     <Switch defaultChecked={false} />
                   </div>
                 </div>
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="font-medium text-slate-700">
+                    <Label className="font-medium text-muted-foreground">
                       Rollout
                     </Label>
-                    <span className="text-sm font-bold text-blue-600">
+                    <span className="text-sm font-bold text-primary">
                       {rolloutValues.dev}%
                     </span>
                   </div>
@@ -255,7 +270,7 @@ export default function FlagDetailsPage({ params }: PageProps) {
 
                 <Button
                   variant="outline"
-                  className="w-full border-slate-200 text-slate-600"
+                  className="w-full border-border text-muted-foreground hover:text-foreground hover:bg-accent"
                 >
                   <Edit2 className="w-4 h-4 mr-2" />
                   Edit Rules
@@ -264,32 +279,33 @@ export default function FlagDetailsPage({ params }: PageProps) {
             </Card>
 
             {/* Staging Environment */}
-            <Card className="border-slate-200">
-              <CardHeader>
+            <Card className="border-border bg-card overflow-hidden relative">
+              <div className="absolute inset-0 bg-linear-to-br from-yellow-500/5 to-amber-500/5 opacity-50" />
+              <CardHeader className="relative">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Staging</CardTitle>
+                  <CardTitle className="text-lg text-foreground">Staging</CardTitle>
                   <Badge
                     variant="outline"
-                    className="bg-yellow-100 text-yellow-700 border-yellow-200"
+                    className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
                   >
                     staging
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 relative">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="font-medium text-slate-700">Status</Label>
+                    <Label className="font-medium text-muted-foreground">Status</Label>
                     <Switch defaultChecked={true} />
                   </div>
                 </div>
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="font-medium text-slate-700">
+                    <Label className="font-medium text-muted-foreground">
                       Rollout
                     </Label>
-                    <span className="text-sm font-bold text-blue-600">
+                    <span className="text-sm font-bold text-primary">
                       {rolloutValues.staging}%
                     </span>
                   </div>
@@ -306,7 +322,7 @@ export default function FlagDetailsPage({ params }: PageProps) {
 
                 <Button
                   variant="outline"
-                  className="w-full border-slate-200 text-slate-600"
+                  className="w-full border-border text-muted-foreground hover:text-foreground hover:bg-accent"
                 >
                   <Edit2 className="w-4 h-4 mr-2" />
                   Edit Rules
@@ -315,32 +331,33 @@ export default function FlagDetailsPage({ params }: PageProps) {
             </Card>
 
             {/* Production Environment */}
-            <Card className="border-slate-200">
-              <CardHeader>
+            <Card className="border-border bg-card overflow-hidden relative">
+              <div className="absolute inset-0 bg-linear-to-br from-green-500/5 to-emerald-500/5 opacity-50" />
+              <CardHeader className="relative">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Production</CardTitle>
+                  <CardTitle className="text-lg text-foreground">Production</CardTitle>
                   <Badge
                     variant="outline"
-                    className="bg-green-100 text-green-700 border-green-200"
+                    className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
                   >
                     prod
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 relative">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="font-medium text-slate-700">Status</Label>
+                    <Label className="font-medium text-muted-foreground">Status</Label>
                     <Switch defaultChecked={true} />
                   </div>
                 </div>
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="font-medium text-slate-700">
+                    <Label className="font-medium text-muted-foreground">
                       Rollout
                     </Label>
-                    <span className="text-sm font-bold text-blue-600">
+                    <span className="text-sm font-bold text-primary">
                       {rolloutValues.prod}%
                     </span>
                   </div>
@@ -357,7 +374,7 @@ export default function FlagDetailsPage({ params }: PageProps) {
 
                 <Button
                   variant="outline"
-                  className="w-full border-slate-200 text-slate-600"
+                  className="w-full border-border text-muted-foreground hover:text-foreground hover:bg-accent"
                 >
                   <Edit2 className="w-4 h-4 mr-2" />
                   Edit Rules
@@ -369,24 +386,27 @@ export default function FlagDetailsPage({ params }: PageProps) {
 
         {/* Audit Logs Tab */}
         <TabsContent value="audit" className="space-y-6">
-          <Card className="border-slate-200">
+          <Card className="border-border bg-card">
             <CardHeader>
-              <CardTitle className="text-lg">Audit Logs</CardTitle>
+              <CardTitle className="text-lg text-foreground">Audit Logs</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {auditLogs.map((log) => (
+                {auditLogs.map((log, index) => (
                   <div
                     key={log.id}
-                    className="flex items-start gap-4 pb-4 border-b border-slate-100 last:border-b-0"
+                    className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 border border-border"
                   >
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <History className="w-4 h-4 text-primary" />
+                    </div>
                     <div className="flex-1">
-                      <p className="font-medium text-slate-900">{log.action}</p>
-                      <p className="text-sm text-slate-500 mt-1">
+                      <p className="font-medium text-foreground">{log.action}</p>
+                      <p className="text-sm text-muted-foreground mt-1">
                         {log.details}
                       </p>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-                        <span>{log.user}</span>
+                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                        <span className="font-medium">{log.user}</span>
                         <span>•</span>
                         <span>{formatDateTime(log.timestamp)}</span>
                       </div>

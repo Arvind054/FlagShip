@@ -13,6 +13,7 @@ import {
   ChevronRight,
   ChevronLeft,
   ChevronDown,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -40,25 +41,25 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "border-r border-slate-200 bg-white transition-all duration-300 flex flex-col h-full",
+        "border-r border-border bg-card transition-all duration-300 flex flex-col h-full",
         isOpen ? "w-64" : "w-20"
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200">
+      <div className="flex items-center justify-between p-4 border-b border-border">
         {isOpen && (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-400 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-linear-to-br from-primary to-blue-400 rounded-lg flex items-center justify-center shadow-lg shadow-primary/25">
               <Flag className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-slate-900">Flagship</span>
+            <span className="font-bold text-foreground">Flagship</span>
           </div>
         )}
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setIsOpen(!isOpen)}
-          className="ml-auto"
+          className="ml-auto text-muted-foreground hover:text-foreground hover:bg-accent"
         >
           {isOpen ? (
             <ChevronLeft className="w-4 h-4" />
@@ -70,45 +71,22 @@ export function Sidebar() {
 
       {/* Project Switcher */}
       {isOpen && (
-        <div className="p-4 border-b border-slate-200">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+        <div className="p-4 border-b border-border">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             Projects
           </div>
-          <button
-            onClick={() => setProjectsOpen(!projectsOpen)}
-            className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 transition-colors text-left"
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full" />
-              <span className="text-sm font-medium text-slate-700">
-                Web Platform
-              </span>
-            </div>
-            <ChevronDown
-              className={cn(
-                "w-4 h-4 transition-transform",
-                projectsOpen ? "rotate-180" : ""
-              )}
-            />
-          </button>
-
-          {projectsOpen && (
-            <div className="mt-2 space-y-1">
-              {projects.map((project) => (
-                <button
-                  key={project.id}
-                  className="w-full flex items-center gap-2 p-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors text-left"
-                >
-                  <div
-                    className={cn("w-2 h-2 rounded-full", project.color)}
-                  />
-                  {project.name}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <Button variant="outline" size="sm" className="w-full mt-3">
+          <div className="space-y-1.5">
+            {projects.map((project) => (
+              <div
+                key={project.id}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer transition-colors"
+              >
+                <div className={cn("w-2 h-2 rounded-full", project.color)} />
+                <span className="text-sm text-foreground">{project.name}</span>
+              </div>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" className="w-full mt-3 border-border text-muted-foreground hover:text-foreground">
             + New Project
           </Button>
         </div>
@@ -116,7 +94,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-2">
+        <div className="space-y-1">
           {navigation.map((item) => {
             const isActive = pathname.startsWith(item.href);
             const Icon = item.icon;
@@ -126,13 +104,13 @@ export function Sidebar() {
                 <Button
                   variant="ghost"
                   className={cn(
-                    "w-full justify-start transition-colors",
+                    "w-full justify-start transition-all duration-200",
                     isActive
-                      ? "bg-blue-50 text-blue-600 hover:bg-blue-50"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                      ? "bg-primary/10 text-primary hover:bg-primary/15 shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
                   )}
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className={cn("w-5 h-5", isActive && "text-primary")} />
                   {isOpen && <span className="ml-3">{item.name}</span>}
                 </Button>
               </Link>
@@ -141,17 +119,34 @@ export function Sidebar() {
         </div>
       </nav>
 
+      {/* Pro Upgrade Banner */}
+      {isOpen && (
+        <div className="p-4 border-t border-border">
+          <div className="p-4 rounded-lg bg-linear-to-br from-primary/10 to-purple-500/10 border border-primary/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">Upgrade to Pro</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">Unlock unlimited flags and advanced analytics</p>
+            <Button size="sm" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+              Upgrade
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       {isOpen && (
-        <div className="border-t border-slate-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center text-sm font-semibold text-slate-700">
+        <div className="border-t border-border p-4">
+          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors">
+            <div className="w-8 h-8 bg-linear-to-br from-primary to-purple-500 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-lg">
               JD
             </div>
-            <div className="text-sm">
-              <div className="font-medium text-slate-900">John Doe</div>
-              <div className="text-xs text-slate-500">john@example.com</div>
+            <div className="text-sm flex-1">
+              <div className="font-medium text-foreground">John Doe</div>
+              <div className="text-xs text-muted-foreground">john@example.com</div>
             </div>
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
           </div>
         </div>
       )}

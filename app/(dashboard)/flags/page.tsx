@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { mockFlags, mockProjects, formatDateTime } from "@/lib/mock-data";
-import { Search, Edit2 } from "lucide-react";
+import { Search, Edit2, Filter, Flag } from "lucide-react";
 
 export default function FlagsPage() {
   const [selectedProject, setSelectedProject] = useState("all");
@@ -44,13 +44,13 @@ export default function FlagsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Feature Flags</h1>
-          <p className="text-slate-500 mt-1">
+          <h1 className="text-3xl font-bold text-foreground">Feature Flags</h1>
+          <p className="text-muted-foreground mt-1">
             View and manage all your feature flags
           </p>
         </div>
 
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25">
           + Create Flag
         </Button>
       </div>
@@ -58,20 +58,21 @@ export default function FlagsPage() {
       {/* Filters */}
       <div className="flex items-center gap-4">
         <div className="flex-1 max-w-sm relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search flags..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 border-slate-200 bg-white"
+            className="pl-10 border-border bg-card text-foreground placeholder:text-muted-foreground"
           />
         </div>
 
         <Select value={selectedProject} onValueChange={setSelectedProject}>
-          <SelectTrigger className="w-48 border-slate-200 bg-white">
+          <SelectTrigger className="w-48 border-border bg-card text-foreground">
+            <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
             <SelectValue placeholder="Filter by project" />
           </SelectTrigger>
-          <SelectContent className="border-slate-200">
+          <SelectContent className="border-border bg-card">
             <SelectItem value="all">All Projects</SelectItem>
             {mockProjects.map((project) => (
               <SelectItem key={project.id} value={project.id}>
@@ -83,28 +84,33 @@ export default function FlagsPage() {
       </div>
 
       {/* Flags Table */}
-      <Card className="border-slate-200">
+      <Card className="border-border bg-card">
         <CardContent className="pt-6">
           <Table>
             <TableHeader>
-              <TableRow className="border-b border-slate-200">
-                <TableHead className="text-slate-600">Feature Key</TableHead>
-                <TableHead className="text-slate-600">Type</TableHead>
-                <TableHead className="text-slate-600">Environments</TableHead>
-                <TableHead className="text-slate-600">Status</TableHead>
-                <TableHead className="text-slate-600">Rollout</TableHead>
-                <TableHead className="text-slate-600">Last Updated</TableHead>
-                <TableHead className="text-slate-600">Actions</TableHead>
+              <TableRow className="border-b border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground">Feature Key</TableHead>
+                <TableHead className="text-muted-foreground">Type</TableHead>
+                <TableHead className="text-muted-foreground">Environments</TableHead>
+                <TableHead className="text-muted-foreground">Status</TableHead>
+                <TableHead className="text-muted-foreground">Rollout</TableHead>
+                <TableHead className="text-muted-foreground">Last Updated</TableHead>
+                <TableHead className="text-muted-foreground">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredFlags.length > 0 ? (
                 filteredFlags.map((flag) => (
-                  <TableRow key={flag.id} className="border-b border-slate-100">
+                  <TableRow key={flag.id} className="border-b border-border/50 hover:bg-accent/50">
                     <TableCell>
-                      <div>
-                        <p className="font-medium text-slate-900">{flag.key}</p>
-                        <p className="text-xs text-slate-500">{flag.name}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <Flag className="w-4 h-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{flag.key}</p>
+                          <p className="text-xs text-muted-foreground">{flag.name}</p>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -112,27 +118,27 @@ export default function FlagsPage() {
                         variant="outline"
                         className={
                           flag.type === "release"
-                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                            ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
                             : flag.type === "experiment"
-                            ? "bg-purple-50 text-purple-700 border-purple-200"
-                            : "bg-orange-50 text-orange-700 border-orange-200"
+                            ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                            : "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
                         }
                       >
                         {flag.type}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1.5">
                         {flag.environments.map((env) => (
                           <Badge
                             key={env}
                             variant="outline"
                             className={
                               env === "dev"
-                                ? "bg-slate-100 text-slate-700 border-slate-200"
+                                ? "bg-muted text-muted-foreground border-border"
                                 : env === "staging"
-                                ? "bg-yellow-100 text-yellow-700 border-yellow-200"
-                                : "bg-green-100 text-green-700 border-green-200"
+                                ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
+                                : "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
                             }
                           >
                             {env}
@@ -145,27 +151,27 @@ export default function FlagsPage() {
                         variant="outline"
                         className={
                           flag.status === "on"
-                            ? "bg-green-50 text-green-700 border-green-200"
-                            : "bg-slate-50 text-slate-700 border-slate-200"
+                            ? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
+                            : "bg-muted text-muted-foreground border-border"
                         }
                       >
                         {flag.status.toUpperCase()}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="flex items-center gap-3">
+                        <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-blue-500 transition-all"
+                            className="h-full bg-linear-to-r from-primary to-blue-400 transition-all"
                             style={{ width: `${flag.rollout}%` }}
                           />
                         </div>
-                        <span className="text-sm font-medium text-slate-600 w-10">
+                        <span className="text-sm font-medium text-foreground w-10">
                           {flag.rollout}%
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm text-slate-600">
+                    <TableCell className="text-sm text-muted-foreground">
                       {formatDateTime(flag.lastUpdated)}
                     </TableCell>
                     <TableCell>
@@ -173,7 +179,7 @@ export default function FlagsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-slate-400 hover:text-blue-600"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
                         >
                           <Edit2 className="w-4 h-4" />
                         </Button>
@@ -183,8 +189,16 @@ export default function FlagsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    <p className="text-slate-500">No flags found</p>
+                  <TableCell colSpan={7} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="p-4 rounded-full bg-muted">
+                        <Flag className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <p className="text-muted-foreground">No flags found</p>
+                      <Button variant="outline" size="sm" className="mt-2">
+                        Create your first flag
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
