@@ -22,17 +22,36 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { mockProjects, maskApiKey, formatDate } from "@/lib/mock-data";
-import { Copy, Eye, Settings, Plus, FolderOpen, Check } from "lucide-react";
+import { Copy, Eye, Settings, Plus, FolderOpen, Check, Loader2 } from "lucide-react";
+import axios from 'axios';
 
 export default function ProjectsPage() {
   const [projects] = useState(mockProjects);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
+  const [loading, setLoading] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
   const handleCopy = (apiKey: string, projectId: string) => {
     navigator.clipboard.writeText(apiKey);
     setCopiedId(projectId);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleCreateProject = async() => {
+    if (!projectName) {
+      return;
+    }
+    setLoading(true);
+    try {
+        const result = await axios.post('/api/projects', {name: projectName, description: projectDescription});
+        console.log("result", result);
+    } catch (err) {
+
+    } finally {
+      setLoading(false);
+      setDialogOpen(false);
+    }
   };
 
   return (
@@ -67,6 +86,7 @@ export default function ProjectsPage() {
                   id="name"
                   placeholder="My Project"
                   className="border-border bg-muted/50 text-foreground mt-1.5"
+                  onChange={(e)=>setProjectName(e.target.value)}
                 />
               </div>
               <div>
@@ -75,13 +95,15 @@ export default function ProjectsPage() {
                   id="description"
                   placeholder="Project description"
                   className="border-border bg-muted/50 text-foreground mt-1.5"
+                  onChange={(e)=>setProjectDescription(e.target.value)}
                 />
               </div>
               <Button
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                onClick={() => setDialogOpen(false)}
+                onClick={handleCreateProject}
+                disabled={loading}
               >
-                Create Project
+                {loading ? <Loader2 className="animate-spin" /> : "Create Project"}
               </Button>
             </div>
           </DialogContent>
