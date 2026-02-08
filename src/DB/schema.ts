@@ -7,6 +7,7 @@ import { pgTable, text, timestamp, boolean, index, integer, varchar, uuid, jsonb
 export const projects = pgTable("projects", {
     id: uuid("id").defaultRandom().primaryKey(),
     name: text("name").notNull(),
+    description: text("description"),
     apiKey: text("api_key").notNull().unique(),
     userId: text("user_id").references(()=>user.id),
     createdAt: timestamp("created_at").defaultNow()

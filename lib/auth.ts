@@ -21,6 +21,11 @@ export const auth = betterAuth({
     process.env.NEXT_PUBLIC_APP_URL || "",
   ].filter(Boolean),
 
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: false,
+  },
+
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,

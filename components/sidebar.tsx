@@ -69,28 +69,6 @@ export function Sidebar() {
         </Button>
       </div>
 
-      {/* Project Switcher */}
-      {isOpen && (
-        <div className="p-4 border-b border-border">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-            Projects
-          </div>
-          <div className="space-y-1.5">
-            {projects.map((project) => (
-              <div
-                key={project.id}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer transition-colors"
-              >
-                <div className={cn("w-2 h-2 rounded-full", project.color)} />
-                <span className="text-sm text-foreground">{project.name}</span>
-              </div>
-            ))}
-          </div>
-          <Button variant="outline" size="sm" className="w-full mt-3 border-border text-muted-foreground hover:text-foreground">
-            + New Project
-          </Button>
-        </div>
-      )}
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-4">
