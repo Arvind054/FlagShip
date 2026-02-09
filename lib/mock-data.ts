@@ -160,20 +160,34 @@ export function getEnvironmentColor(env: Environment): string {
   }
 }
 
-export function formatDate(date: Date): string {
+export function formatDate(date: Date | string | null | undefined): string {
+  if (!date) {
+    return "N/A";
+  }
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) {
+    return "Invalid date";
+  }
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-  }).format(date);
+  }).format(d);
 }
 
-export function formatDateTime(date: Date): string {
+export function formatDateTime(date: Date | string | null | undefined): string {
+  if (!date) {
+    return "N/A";
+  }
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) {
+    return "Invalid date";
+  }
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(date);
+  }).format(d);
 }
