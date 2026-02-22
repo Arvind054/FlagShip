@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,8 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { mockFlags, formatDateTime, formatDate } from "@/lib/mock-data";
-import { ChevronLeft, Edit2, MoreVertical, Flag, Info, Target, Layers, History } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { formatDateTime, formatDate, FeatureFlag, FeatureRule } from "@/lib/mock-data";
+import { ChevronLeft, MoreVertical, Flag, Info, Target, Layers, History, Loader2, Check, Plus, Trash2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import axios from "axios";
 
 type PageProps = {
   params: {
@@ -18,37 +23,195 @@ type PageProps = {
   };
 };
 
-export default function FlagDetailsPage({ params }: PageProps) {
-  const flag = mockFlags.find((f) => f.id === params.id) || mockFlags[0];
-  const [rolloutValues, setRolloutValues] = useState({
-    dev: 0,
-    staging: 50,
-    prod: 100,
-  });
+export default function FlagDetailsPage() {
+    const params = useParams();
+    const flagId = params.id as string;
+    const router  = useRouter();
+    const [flag, setFlag] = useState<FeatureFlag | null>(null)
+    const [loading, setLoading] =  useState(true);
+    const [error, setError] = useState<string | null>(null);
+    
+    const [rolloutValues, setRolloutValues] = useState({
+        dev: 0,
+        staging: 0,
+        prod: 0
+    });
 
-  const auditLogs = [
-    {
-      id: 1,
-      action: "Flag toggled ON",
-      user: "John Doe",
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      details: "Production environment",
-    },
-    {
-      id: 2,
-      action: "Rollout changed",
-      user: "Jane Smith",
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      details: "Changed from 45% to 50%",
-    },
-    {
-      id: 3,
-      action: "Flag created",
-      user: "John Doe",
-      timestamp: flag.createdAt,
-      details: "Initial creation",
-    },
-  ];
+    const [statusValues, setStatusValues] = useState({
+        dev: false,
+        staging: false,
+        prod: false
+    });
+
+    const [saving, setSaving] = useState<string | null>(null);
+    const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+    const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({});
+
+    // Function to update environment settings in DB
+    const updateEnvironment = useCallback(async (
+        environment: 'dev' | 'staging' | 'prod',
+        updates: { status?: boolean; rolloutPercentage?: number; rules?: any[] }
+    ) => {
+        if (!flagId) return;
+        
+        setSaving(environment);
+        try {
+            await axios.patch(`/api/features/${flagId}`, {
+                environment,
+                ...updates
+            });
+            setSaveSuccess(environment);
+            setTimeout(() => setSaveSuccess(null), 2000);
+        } catch (err) {
+            console.error(`Error updating ${environment}:`, err);
+        } finally {
+            setSaving(null);
+        }
+    }, [flagId]);
+
+    // Debounced rollout update
+    const handleRolloutChange = useCallback((env: 'dev' | 'staging' | 'prod', value: number) => {
+        setRolloutValues(prev => ({ ...prev, [env]: value }));
+        
+        // Clear existing timer
+        if (debounceTimers.current[env]) {
+            clearTimeout(debounceTimers.current[env]);
+        }
+        
+        // Set new timer to save after 500ms of no changes
+        debounceTimers.current[env] = setTimeout(() => {
+            updateEnvironment(env, { rolloutPercentage: value });
+        }, 500);
+    }, [updateEnvironment]);
+
+    // Status toggle handler
+    const handleStatusChange = useCallback((env: 'dev' | 'staging' | 'prod', checked: boolean) => {
+        setStatusValues(prev => ({ ...prev, [env]: checked }));
+        updateEnvironment(env, { status: checked });
+    }, [updateEnvironment]);
+
+    // Mock audit logs - in production this would come from the API
+    const auditLogs: { id: string; action: string; details: string; user: string; timestamp: Date }[] = [];
+
+    // Targeting rules state
+    const [rules, setRules] = useState<FeatureRule[]>([]);
+    const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
+    const [savingRules, setSavingRules] = useState(false);
+    const [newRule, setNewRule] = useState<FeatureRule>({
+        field: '',
+        operator: 'equals',
+        value: ''
+    });
+
+    // Add a new rule
+    const handleAddRule = () => {
+        if (!newRule.field || newRule.value === '') return;
+        const updatedRules = [...rules, newRule];
+        setRules(updatedRules);
+        setNewRule({ field: '', operator: 'equals', value: '' });
+        setRuleDialogOpen(false);
+    };
+
+    // Remove a rule
+    const handleRemoveRule = (index: number) => {
+        const updatedRules = rules.filter((_, i) => i !== index);
+        setRules(updatedRules);
+    };
+
+    // Save rules to all environments
+    const handleSaveRules = async () => {
+        if (!flagId) return;
+        setSavingRules(true);
+        try {
+            // Save rules to all environments
+            await Promise.all(['dev', 'staging', 'prod'].map(env =>
+                axios.patch(`/api/features/${flagId}`, {
+                    environment: env,
+                    rules: rules
+                })
+            ));
+        } catch (err) {
+            console.error('Error saving rules:', err);
+        } finally {
+            setSavingRules(false);
+        }
+    };
+
+    useEffect(()=>{
+        if(!flagId){
+            router.push("/projects");
+            return;
+        }
+         const getFlagData = async()=>{
+          setLoading(true);
+             try{
+                const result = await axios.get(`/api/features/${flagId}`);
+                const flagData = result.data;
+                setFlag(flagData);
+                
+                // Set rollout values from environments
+                if (flagData.environments) {
+                    const getRollout = (env: string) => {
+                        const envData = flagData.environments.find((e: any) => e.environment === env);
+                        return envData?.rolloutPercentage ?? 0;
+                    };
+                    const getStatus = (env: string) => {
+                        const envData = flagData.environments.find((e: any) => e.environment === env);
+                        return envData?.status ?? false;
+                    };
+                    setRolloutValues({
+                        dev: getRollout('dev'),
+                        staging: getRollout('staging'),
+                        prod: getRollout('prod')
+                    });
+                    setStatusValues({
+                        dev: getStatus('dev'),
+                        staging: getStatus('staging'),
+                        prod: getStatus('prod')
+                    });
+                    
+                    // Load rules from first environment that has them
+                    const envWithRules = flagData.environments.find((e: any) => e.rules && e.rules.length > 0);
+                    if (envWithRules?.rules) {
+                        setRules(envWithRules.rules);
+                    }
+                }
+             }catch(err: any){
+               console.log("Error fetching flag:", err);
+               setError(err.response?.data?.error || err.message || "Failed to fetch feature");
+             }finally{
+               setLoading(false);
+             }
+         }
+         getFlagData();
+
+         // Cleanup debounce timers on unmount
+         return () => {
+            Object.values(debounceTimers.current).forEach(timer => clearTimeout(timer));
+         };
+    }, [flagId]);
+
+    if (loading) {
+        return (
+          <div className="p-8 flex items-center justify-center min-h-100">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        );
+    }
+
+    if (!flag) {
+        return (
+          <div className="p-8 space-y-8">
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">{error || "Feature flag not found"}</p>
+              <Button variant="outline" className="mt-4" onClick={() => router.push("/flags")}>
+                Back to Flags
+              </Button>
+            </div>
+          </div>
+        );
+    }
+  
 
   return (
     <div className="p-8 space-y-8">
@@ -207,18 +370,135 @@ export default function FlagDetailsPage({ params }: PageProps) {
         <TabsContent value="targeting" className="space-y-6">
           <Card className="border-border bg-card">
             <CardHeader>
-              <CardTitle className="text-lg text-foreground">Targeting Rules</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg text-foreground">Targeting Rules</CardTitle>
+                <div className="flex items-center gap-2">
+                  {rules.length > 0 && (
+                    <Button 
+                      onClick={handleSaveRules}
+                      disabled={savingRules}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    >
+                      {savingRules ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save Rules'
+                      )}
+                    </Button>
+                  )}
+                  <Dialog open={ruleDialogOpen} onOpenChange={setRuleDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Rule
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Add Targeting Rule</DialogTitle>
+                        <DialogDescription>
+                          Create a rule to target specific users based on attributes.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="field">Field</Label>
+                          <Input
+                            id="field"
+                            placeholder="e.g., userId, country, plan"
+                            value={newRule.field}
+                            onChange={(e) => setNewRule(prev => ({ ...prev, field: e.target.value }))}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="operator">Operator</Label>
+                          <Select
+                            value={newRule.operator}
+                            onValueChange={(value) => setNewRule(prev => ({ ...prev, operator: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select operator" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="equals">Equals</SelectItem>
+                              <SelectItem value="not_equals">Not Equals</SelectItem>
+                              <SelectItem value="contains">Contains</SelectItem>
+                              <SelectItem value="not_contains">Not Contains</SelectItem>
+                              <SelectItem value="starts_with">Starts With</SelectItem>
+                              <SelectItem value="ends_with">Ends With</SelectItem>
+                              <SelectItem value="greater_than">Greater Than</SelectItem>
+                              <SelectItem value="less_than">Less Than</SelectItem>
+                              <SelectItem value="in">In List</SelectItem>
+                              <SelectItem value="not_in">Not In List</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="value">Value</Label>
+                          <Input
+                            id="value"
+                            placeholder="e.g., premium, US, user123"
+                            value={newRule.value}
+                            onChange={(e) => setNewRule(prev => ({ ...prev, value: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setRuleDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button 
+                          onClick={handleAddRule}
+                          disabled={!newRule.field || newRule.value === ''}
+                        >
+                          Add Rule
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12">
-                <div className="p-4 rounded-full bg-muted inline-block mb-4">
-                  <Target className="w-8 h-8 text-muted-foreground" />
+              {rules.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="p-4 rounded-full bg-muted inline-block mb-4">
+                    <Target className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-muted-foreground mb-2">No rules configured yet</p>
+                  <p className="text-sm text-muted-foreground">Add targeting rules to control which users see this feature.</p>
                 </div>
-                <p className="text-muted-foreground mb-4">No rules configured yet</p>
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                  + Add Rule
-                </Button>
-              </div>
+              ) : (
+                <div className="space-y-3">
+                  {rules.map((rule, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                          {rule.field}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">{rule.operator.replace('_', ' ')}</span>
+                        <Badge variant="outline" className="bg-muted text-foreground border-border">
+                          {String(rule.value)}
+                        </Badge>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleRemoveRule(index)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -244,7 +524,14 @@ export default function FlagDetailsPage({ params }: PageProps) {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Label className="font-medium text-muted-foreground">Status</Label>
-                    <Switch defaultChecked={false} />
+                    <div className="flex items-center gap-2">
+                      {saving === 'dev' && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                      {saveSuccess === 'dev' && <Check className="w-4 h-4 text-green-500" />}
+                      <Switch 
+                        checked={statusValues.dev} 
+                        onCheckedChange={(checked) => handleStatusChange('dev', checked)}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -259,22 +546,12 @@ export default function FlagDetailsPage({ params }: PageProps) {
                   </div>
                   <Slider
                     value={[rolloutValues.dev]}
-                    onValueChange={(val) =>
-                      setRolloutValues({ ...rolloutValues, dev: val[0] })
-                    }
+                    onValueChange={(val) => handleRolloutChange('dev', val[0])}
                     max={100}
                     step={10}
                     className="cursor-pointer"
                   />
                 </div>
-
-                <Button
-                  variant="outline"
-                  className="w-full border-border text-muted-foreground hover:text-foreground hover:bg-accent"
-                >
-                  <Edit2 className="w-4 h-4 mr-2" />
-                  Edit Rules
-                </Button>
               </CardContent>
             </Card>
 
@@ -296,7 +573,14 @@ export default function FlagDetailsPage({ params }: PageProps) {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Label className="font-medium text-muted-foreground">Status</Label>
-                    <Switch defaultChecked={true} />
+                    <div className="flex items-center gap-2">
+                      {saving === 'staging' && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                      {saveSuccess === 'staging' && <Check className="w-4 h-4 text-green-500" />}
+                      <Switch 
+                        checked={statusValues.staging} 
+                        onCheckedChange={(checked) => handleStatusChange('staging', checked)}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -311,22 +595,12 @@ export default function FlagDetailsPage({ params }: PageProps) {
                   </div>
                   <Slider
                     value={[rolloutValues.staging]}
-                    onValueChange={(val) =>
-                      setRolloutValues({ ...rolloutValues, staging: val[0] })
-                    }
+                    onValueChange={(val) => handleRolloutChange('staging', val[0])}
                     max={100}
                     step={10}
                     className="cursor-pointer"
                   />
                 </div>
-
-                <Button
-                  variant="outline"
-                  className="w-full border-border text-muted-foreground hover:text-foreground hover:bg-accent"
-                >
-                  <Edit2 className="w-4 h-4 mr-2" />
-                  Edit Rules
-                </Button>
               </CardContent>
             </Card>
 
@@ -348,7 +622,14 @@ export default function FlagDetailsPage({ params }: PageProps) {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Label className="font-medium text-muted-foreground">Status</Label>
-                    <Switch defaultChecked={true} />
+                    <div className="flex items-center gap-2">
+                      {saving === 'prod' && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                      {saveSuccess === 'prod' && <Check className="w-4 h-4 text-green-500" />}
+                      <Switch 
+                        checked={statusValues.prod} 
+                        onCheckedChange={(checked) => handleStatusChange('prod', checked)}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -363,22 +644,12 @@ export default function FlagDetailsPage({ params }: PageProps) {
                   </div>
                   <Slider
                     value={[rolloutValues.prod]}
-                    onValueChange={(val) =>
-                      setRolloutValues({ ...rolloutValues, prod: val[0] })
-                    }
+                    onValueChange={(val) => handleRolloutChange('prod', val[0])}
                     max={100}
                     step={10}
                     className="cursor-pointer"
                   />
                 </div>
-
-                <Button
-                  variant="outline"
-                  className="w-full border-border text-muted-foreground hover:text-foreground hover:bg-accent"
-                >
-                  <Edit2 className="w-4 h-4 mr-2" />
-                  Edit Rules
-                </Button>
               </CardContent>
             </Card>
           </div>
