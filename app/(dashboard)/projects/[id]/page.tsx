@@ -94,7 +94,7 @@ export default function ProjectDetailPage() {
 
     if (loading) {
       return (
-        <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <div className="p-8 flex items-center justify-center min-h-100">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       );
@@ -215,7 +215,7 @@ export default function ProjectDetailPage() {
                   Create Flag
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
+              <DialogContent className="sm:max-w-125">
                 <DialogHeader>
                   <DialogTitle>Create New Feature Flag</DialogTitle>
                   <DialogDescription>
@@ -317,16 +317,7 @@ export default function ProjectDetailPage() {
                           <code className="text-xs text-muted-foreground font-mono">{flag.key}</code>
                         </div>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={
-                          flag.status === "on"
-                            ? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
-                            : "bg-muted text-muted-foreground border-border"
-                        }
-                      >
-                        {(flag.status || "off").toUpperCase()}
-                      </Badge>
+                     
                     </div>
 
                     <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
@@ -355,6 +346,7 @@ export default function ProjectDetailPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs text-muted-foreground">Environments:</span>
                         {flag.environments.map((env) => (
+                          
                           <Badge
                             key={env.id}
                             variant="outline"
@@ -375,12 +367,14 @@ export default function ProjectDetailPage() {
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground">Rollout</span>
-                          <span className="text-sm font-medium">{flag.rollout}%</span>
+                          <span className="text-sm font-medium">
+                            {flag.environments[0]?.rolloutPercentage ?? 0}%
+                          </span>
                         </div>
                         <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-primary to-blue-400 transition-all"
-                            style={{ width: `${flag.rollout}%` }}
+                            className="h-full bg-linear-to-r from-primary to-blue-400 transition-all"
+                            style={{ width: `${flag.environments[0]?.rolloutPercentage ?? 0}%` }}
                           />
                         </div>
                       </div>

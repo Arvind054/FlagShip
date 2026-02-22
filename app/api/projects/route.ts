@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
         const allProjects = await db.select()
             .from(projects)
             .where(eq(projects?.userId, userData?.id));
+      
         return NextResponse.json(allProjects);
     } catch (err) {
         return NextResponse.json({ error: "Failed to Create Project" }, { status: 500 });

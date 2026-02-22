@@ -1,17 +1,28 @@
 export type FeatureFlag = {
   id: string;
   key: string;
+  projectId: string;
   name: string;
   description: string;
   type: "release" | "experiment" | "ops";
-  status: "on" | "off";
-  rollout: number;
-  environments: ("dev" | "staging" | "prod")[];
+  environments: FeatureEnvironment[],
   lastUpdated: Date;
   createdAt: Date;
-  projectId: string;
 };
 
+export type FeatureEnvironment = {
+  id: string;                 
+  featureId: string | null;   
+  environment: string | null; 
+  status: boolean | null;
+  rolloutPercentage: number | null;
+  rules: FeatureRule[] | null;
+};
+export type FeatureRule = {
+  field: string;
+  operator: string;
+  value: any;
+};
 export type Project = {
   id: string;
   name: string;
@@ -23,6 +34,67 @@ export type Project = {
 
 export type Environment = "dev" | "staging" | "prod";
 
+
+export function maskApiKey(apiKey: string): string {
+  if (apiKey.length <= 8) return apiKey;
+  return `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
+}
+
+export function getTypeColor(
+  type: "release" | "experiment" | "ops"
+): string {
+  switch (type) {
+    case "release":
+      return "bg-blue-100 text-blue-800";
+    case "experiment":
+      return "bg-purple-100 text-purple-800";
+    case "ops":
+      return "bg-orange-100 text-orange-800";
+  }
+}
+
+export function getEnvironmentColor(env: Environment): string {
+  switch (env) {
+    case "dev":
+      return "bg-slate-100 text-slate-800";
+    case "staging":
+      return "bg-yellow-100 text-yellow-800";
+    case "prod":
+      return "bg-green-100 text-green-800";
+  }
+}
+
+export function formatDate(date: Date | string | null | undefined): string {
+  if (!date) {
+    return "N/A";
+  }
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) {
+    return "Invalid date";
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(d);
+}
+
+export function formatDateTime(date: Date | string | null | undefined): string {
+  if (!date) {
+    return "N/A";
+  }
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) {
+    return "Invalid date";
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
 export const mockProjects: Project[] = [
   {
     id: "proj_1",
@@ -130,64 +202,3 @@ export const mockFlags: FeatureFlag[] = [
     projectId: "proj_2",
   },
 ];
-
-export function maskApiKey(apiKey: string): string {
-  if (apiKey.length <= 8) return apiKey;
-  return `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
-}
-
-export function getTypeColor(
-  type: "release" | "experiment" | "ops"
-): string {
-  switch (type) {
-    case "release":
-      return "bg-blue-100 text-blue-800";
-    case "experiment":
-      return "bg-purple-100 text-purple-800";
-    case "ops":
-      return "bg-orange-100 text-orange-800";
-  }
-}
-
-export function getEnvironmentColor(env: Environment): string {
-  switch (env) {
-    case "dev":
-      return "bg-slate-100 text-slate-800";
-    case "staging":
-      return "bg-yellow-100 text-yellow-800";
-    case "prod":
-      return "bg-green-100 text-green-800";
-  }
-}
-
-export function formatDate(date: Date | string | null | undefined): string {
-  if (!date) {
-    return "N/A";
-  }
-  const d = typeof date === "string" ? new Date(date) : date;
-  if (isNaN(d.getTime())) {
-    return "Invalid date";
-  }
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(d);
-}
-
-export function formatDateTime(date: Date | string | null | undefined): string {
-  if (!date) {
-    return "N/A";
-  }
-  const d = typeof date === "string" ? new Date(date) : date;
-  if (isNaN(d.getTime())) {
-    return "Invalid date";
-  }
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
-}

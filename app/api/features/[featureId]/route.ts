@@ -1,14 +1,13 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/src/DB";
-import { featureEnvironments, user } from "@/src/DB/schema";
-import { error } from "console";
+import { featureEnvironments, features, user } from "@/src/DB/schema";
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 
 // Function to update the feature Environment
-export async function PATCH(req: NextRequest, { params }: { params: { featureId: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ featureId: string }> }) {
     try {
         const session = await auth.api.getSession({ headers: await headers() });
         if (!session?.user?.id) {
@@ -22,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { featureId:
         if (!userData || !userData.email) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
-        const { featureId } = params;
+        const { featureId } = await params;
         const { environment, status, rolloutPercentage, rules } = await req.json();
         if(!environment){
             return NextResponse.json({error: "Environment not Found"}, {status:500});
@@ -46,6 +45,47 @@ export async function PATCH(req: NextRequest, { params }: { params: { featureId:
     }
     catch (err) {
         return NextResponse.json({ error: "Failed to Update the feature Environments" }, { status: 500 });
+    }
+}
+
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ featureId: string }> }) {
+    try {
+        const session = await auth.api.getSession({ headers: await headers() });
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        
+        const { featureId } = await params;
+        if (!featureId) {
+            return NextResponse.json({ error: "Feature Id Not Found" }, { status: 400 });
+        }
+
+        // Get feature details
+        const [feature] = await db
+            .select()
+            .from(features)
+            .where(eq(features.id, featureId))
+            .limit(1);
+
+        if (!feature) {
+            return NextResponse.json({ error: "Feature not found" }, { status: 404 });
+        }
+
+        // Get feature environments
+        const environments = await db
+            .select()
+            .from(featureEnvironments)
+            .where(eq(featureEnvironments.featureId, featureId));
+
+        return NextResponse.json({
+            ...feature,
+            environments,
+            lastUpdated: feature.createdAt // Use createdAt as lastUpdated for now
+        });
+    } catch (err) {
+        console.error("Error getting Feature Details:", err);
+        return NextResponse.json({ error: "Error getting Feature Details" }, { status: 500 });
     }
 }
 
