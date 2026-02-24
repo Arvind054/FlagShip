@@ -14,9 +14,11 @@ import {
   ChevronLeft,
   ChevronDown,
   Sparkles,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useSession } from "@/lib/auth-client";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -31,6 +33,7 @@ export function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
   const [projectsOpen, setProjectsOpen] = useState(true);
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   const projects = [
     { id: 1, name: "Web Platform", color: "bg-blue-500" },
@@ -114,15 +117,23 @@ export function Sidebar() {
       )}
 
       {/* Footer */}
-      {isOpen && (
+      {isOpen && session?.user && (
         <div className="border-t border-border p-4">
           <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors">
-            <div className="w-8 h-8 bg-linear-to-br from-primary to-purple-500 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-lg">
-              JD
-            </div>
-            <div className="text-sm flex-1">
-              <div className="font-medium text-foreground">John Doe</div>
-              <div className="text-xs text-muted-foreground">john@example.com</div>
+            {session.user.image ? (
+              <img 
+                src={session.user.image} 
+                alt={session.user.name || "User"} 
+                className="w-8 h-8 rounded-full object-cover shadow-lg"
+              />
+            ) : (
+              <div className="w-8 h-8 bg-linear-to-br from-primary to-purple-500 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-lg">
+                {session.user.name ? session.user.name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
+              </div>
+            )}
+            <div className="text-sm flex-1 overflow-hidden">
+              <div className="font-medium text-foreground truncate">{session.user.name || "User"}</div>
+              <div className="text-xs text-muted-foreground truncate">{session.user.email}</div>
             </div>
             <ChevronDown className="w-4 h-4 text-muted-foreground" />
           </div>

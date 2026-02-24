@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -21,23 +21,83 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { mockFlags, mockProjects, formatDateTime } from "@/lib/mock-data";
-import { Search, Edit2, Filter, Flag } from "lucide-react";
+import { FeatureFlag, FeatureEnvironment, formatDateTime } from "@/lib/mock-data";
+import { Search, Edit2, Filter, Flag, Loader2 } from "lucide-react";
+
+type Project = {
+  id: string;
+  name: string;
+  description: string | null;
+  apiKey: string;
+  userId: string | null;
+  createdAt: Date | null;
+};
 
 export default function FlagsPage() {
   const [selectedProject, setSelectedProject] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [flags, setFlags] = useState<FeatureFlag[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchFlags() {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/features/all");
+        if (!response.ok) {
+          throw new Error("Failed to fetch flags");
+        }
+        const data = await response.json();
+        setFlags(data.flags || []);
+        setProjects(data.projects || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchFlags();
+  }, []);
 
   const filteredFlags = useMemo(() => {
-    return mockFlags.filter((flag) => {
+    return flags.filter((flag) => {
       const matchesProject =
         selectedProject === "all" || flag.projectId === selectedProject;
       const matchesSearch =
         flag.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        flag.name.toLowerCase().includes(searchQuery.toLowerCase());
+        (flag.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
       return matchesProject && matchesSearch;
     });
-  }, [selectedProject, searchQuery]);
+  }, [selectedProject, searchQuery, flags]);
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading flags...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="p-4 rounded-full bg-destructive/10">
+            <Flag className="w-8 h-8 text-destructive" />
+          </div>
+          <p className="text-destructive">{error}</p>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-8">
@@ -74,7 +134,7 @@ export default function FlagsPage() {
           </SelectTrigger>
           <SelectContent className="border-border bg-card">
             <SelectItem value="all">All Projects</SelectItem>
-            {mockProjects.map((project) => (
+            {projects.map((project) => (
               <SelectItem key={project.id} value={project.id}>
                 {project.name}
               </SelectItem>
@@ -100,7 +160,15 @@ export default function FlagsPage() {
             </TableHeader>
             <TableBody>
               {filteredFlags.length > 0 ? (
-                filteredFlags.map((flag) => (
+                filteredFlags.map((flag) => {
+                  // Find production environment for status/rollout display, fallback to first enabled env
+                  const prodEnv = flag.environments.find((e: FeatureEnvironment) => e.environment === "prod");
+                  const anyEnabledEnv = flag.environments.find((e: FeatureEnvironment) => e.status === true);
+                  const displayEnv = prodEnv || anyEnabledEnv || flag.environments[0];
+                  const isEnabled = displayEnv?.status === true;
+                  const rolloutPercentage = displayEnv?.rolloutPercentage ?? 0;
+
+                  return (
                   <TableRow key={flag.id} className="border-b border-border/50 hover:bg-accent/50">
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -109,7 +177,7 @@ export default function FlagsPage() {
                         </div>
                         <div>
                           <p className="font-medium text-foreground">{flag.key}</p>
-                          <p className="text-xs text-muted-foreground">{flag.name}</p>
+                          <p className="text-xs text-muted-foreground">{flag.name || "No description"}</p>
                         </div>
                       </div>
                     </TableCell>
@@ -124,24 +192,24 @@ export default function FlagsPage() {
                             : "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
                         }
                       >
-                        {flag.type}
+                        {flag.type || "release"}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1.5">
-                        {flag.environments.map((env) => (
+                        {flag.environments.map((env: FeatureEnvironment) => (
                           <Badge
-                            key={env}
+                            key={env.id}
                             variant="outline"
                             className={
-                              env === "dev"
+                              env.environment === "dev"
                                 ? "bg-muted text-muted-foreground border-border"
-                                : env === "staging"
+                                : env.environment === "staging"
                                 ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
                                 : "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
                             }
                           >
-                            {env}
+                            {env.environment}
                           </Badge>
                         ))}
                       </div>
@@ -150,12 +218,12 @@ export default function FlagsPage() {
                       <Badge
                         variant="outline"
                         className={
-                          flag.status === "on"
+                          isEnabled
                             ? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
                             : "bg-muted text-muted-foreground border-border"
                         }
                       >
-                        {flag.status.toUpperCase()}
+                        {isEnabled ? "ON" : "OFF"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -163,16 +231,16 @@ export default function FlagsPage() {
                         <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
                           <div
                             className="h-full bg-linear-to-r from-primary to-blue-400 transition-all"
-                            style={{ width: `${flag.rollout}%` }}
+                            style={{ width: `${rolloutPercentage}%` }}
                           />
                         </div>
                         <span className="text-sm font-medium text-foreground w-10">
-                          {flag.rollout}%
+                          {rolloutPercentage}%
                         </span>
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {formatDateTime(flag.lastUpdated)}
+                      {flag.createdAt ? formatDateTime(new Date(flag.createdAt)) : "N/A"}
                     </TableCell>
                     <TableCell>
                       <Link href={`/flags/${flag.id}`}>
@@ -186,7 +254,8 @@ export default function FlagsPage() {
                       </Link>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-12">
