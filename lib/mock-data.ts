@@ -1,13 +1,12 @@
 export type FeatureFlag = {
   id: string;
   key: string;
-  projectId: string;
-  name: string;
-  description: string;
-  type: "release" | "experiment" | "ops";
+  projectId: string | null;
+  name: string | null;
+  description: string | null;
+  type: string | null;
   environments: FeatureEnvironment[],
-  lastUpdated: Date;
-  createdAt: Date;
+  createdAt: Date | null;
 };
 
 export type FeatureEnvironment = {
@@ -27,9 +26,9 @@ export type Project = {
   id: string;
   name: string;
   apiKey: string;
-  description: string;
-  createdAt: Date;
-  updatedAt: Date;
+  description: string | null;
+  createdAt: Date | null;
+  userId?: string | null;
 };
 
 export type Environment = "dev" | "staging" | "prod";
