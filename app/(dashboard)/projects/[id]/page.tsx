@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Project, FeatureFlag, formatDate, formatDateTime, maskApiKey } from '@/lib/mock-data';
 import axios from 'axios';
-import { Loader2, ArrowLeft, Copy, Check, Flag, Edit2, Settings, Key, Calendar, FileText, Plus } from 'lucide-react';
+import { Loader2, ArrowLeft, Copy, Check, Flag, Edit2, Settings, Key, Calendar, FileText, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,12 @@ export default function ProjectDetailPage() {
       description: '',
       type: 'release'
     });
+
+    // Delete dialog state
+    const [deleteProjectDialogOpen, setDeleteProjectDialogOpen] = useState(false);
+    const [deleteFlagDialogOpen, setDeleteFlagDialogOpen] = useState(false);
+    const [flagToDelete, setFlagToDelete] = useState<FeatureFlag | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
       if (!projectId) {
@@ -92,6 +98,39 @@ export default function ProjectDetailPage() {
       return name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
     };
 
+    const handleDeleteFlag = async () => {
+      if (!flagToDelete) return;
+      
+      setDeleting(true);
+      try {
+        await axios.delete(`/api/features/${flagToDelete.id}`);
+        setDeleteFlagDialogOpen(false);
+        setFlagToDelete(null);
+        getProjectData();
+      } catch (err) {
+        console.error('Error deleting flag:', err);
+      } finally {
+        setDeleting(false);
+      }
+    };
+
+    const handleDeleteProject = async () => {
+      setDeleting(true);
+      try {
+        await axios.delete(`/api/projects/${projectId}`);
+        router.push('/projects');
+      } catch (err) {
+        console.error('Error deleting project:', err);
+      } finally {
+        setDeleting(false);
+      }
+    };
+
+    const openDeleteFlagDialog = (flag: FeatureFlag) => {
+      setFlagToDelete(flag);
+      setDeleteFlagDialogOpen(true);
+    };
+
     if (loading) {
       return (
         <div className="p-8 flex items-center justify-center min-h-100">
@@ -129,10 +168,40 @@ export default function ProjectDetailPage() {
             <h1 className="text-3xl font-bold text-foreground">{project.name}</h1>
             <p className="text-muted-foreground mt-1">{project.description}</p>
           </div>
-          <Button variant="outline" className="gap-2">
-            <Settings className="w-4 h-4" />
-            Settings
-          </Button>
+          <Dialog open={deleteProjectDialogOpen} onOpenChange={setDeleteProjectDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive" className="gap-2">
+                <Trash2 className="w-4 h-4" />
+                Delete Project
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="w-5 h-5" />
+                  Delete Project
+                </DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete <strong>{project.name}</strong>? This action cannot be undone. All feature flags ({features.length}) associated with this project will also be deleted.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteProjectDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={handleDeleteProject} disabled={deleting}>
+                  {deleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete Project'
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Project Details Card */}
@@ -180,13 +249,15 @@ export default function ProjectDetailPage() {
                 <p className="text-sm font-medium">{formatDate(project.createdAt)}</p>
               </div>
 
-              {/* Updated Date */}
+              {/* Project ID */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="w-4 h-4" />
-                  Last Updated
+                  <FileText className="w-4 h-4" />
+                  Project ID
                 </div>
-                <p className="text-sm font-medium">{formatDate(project.updatedAt)}</p>
+                <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                  {project.id}
+                </code>
               </div>
 
               {/* Feature Count */}
@@ -317,12 +388,25 @@ export default function ProjectDetailPage() {
                           <code className="text-xs text-muted-foreground font-mono">{flag.key}</code>
                         </div>
                       </div>
-                     
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => openDeleteFlagDialog(flag)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
 
                     <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                      {flag.description}
+                      {flag.description || 'No description'}
                     </p>
+
+                    {/* Flag ID */}
+                    <div className="mb-3">
+                      <span className="text-xs text-muted-foreground">Flag ID: </span>
+                      <code className="text-xs font-mono bg-muted px-1 py-0.5 rounded">{flag.id}</code>
+                    </div>
 
                     <div className="space-y-3">
                       {/* Type Badge */}
@@ -342,39 +426,49 @@ export default function ProjectDetailPage() {
                         </Badge>
                       </div>
 
-                      {/* Environments */}
-                      <div className="flex items-center gap-2 flex-wrap">
+                      {/* Environments with Status */}
+                      <div className="space-y-2">
                         <span className="text-xs text-muted-foreground">Environments:</span>
-                        {flag.environments.map((env) => (
-                          
-                          <Badge
-                            key={env.id}
-                            variant="outline"
-                            className={
-                              env.environment === "dev"
-                                ? "bg-muted text-muted-foreground border-border"
-                                : env.environment === "staging"
-                                ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
-                                : "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
-                            }
-                          >
-                            {env.environment}
-                          </Badge>
-                        ))}
+                        <div className="space-y-1">
+                          {flag.environments.map((env) => (
+                            <div key={env.id} className="flex items-center justify-between text-xs">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  env.environment === "dev"
+                                    ? "bg-muted text-muted-foreground border-border"
+                                    : env.environment === "staging"
+                                    ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
+                                    : "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
+                                }
+                              >
+                                {env.environment}
+                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <span className={env.status ? "text-green-600" : "text-muted-foreground"}>
+                                  {env.status ? "ON" : "OFF"}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {env.rolloutPercentage ?? 0}%
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
 
-                      {/* Rollout */}
+                      {/* Overall Rollout Progress */}
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Rollout</span>
+                          <span className="text-xs text-muted-foreground">Overall Progress</span>
                           <span className="text-sm font-medium">
-                            {flag.environments[0]?.rolloutPercentage ?? 0}%
+                            {Math.round(flag.environments.reduce((acc, env) => acc + (env.rolloutPercentage ?? 0), 0) / (flag.environments.length || 1))}%
                           </span>
                         </div>
                         <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                           <div
                             className="h-full bg-linear-to-r from-primary to-blue-400 transition-all"
-                            style={{ width: `${flag.environments[0]?.rolloutPercentage ?? 0}%` }}
+                            style={{ width: `${Math.round(flag.environments.reduce((acc, env) => acc + (env.rolloutPercentage ?? 0), 0) / (flag.environments.length || 1))}%` }}
                           />
                         </div>
                       </div>
@@ -382,7 +476,7 @@ export default function ProjectDetailPage() {
 
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
                       <span className="text-xs text-muted-foreground">
-                        Updated {formatDateTime(flag.lastUpdated)}
+                        Created {formatDateTime(flag.createdAt)}
                       </span>
                       <Link href={`/flags/${flag.id}`}>
                         <Button
@@ -417,6 +511,43 @@ export default function ProjectDetailPage() {
             </Card>
           )}
         </div>
+
+        {/* Delete Flag Confirmation Dialog */}
+        <Dialog open={deleteFlagDialogOpen} onOpenChange={setDeleteFlagDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="w-5 h-5" />
+                Delete Feature Flag
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete <strong>{flagToDelete?.name}</strong>? This action cannot be undone. All environment configurations for this flag will also be deleted.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
+                <div><span className="text-muted-foreground">Flag Key:</span> <code className="font-mono">{flagToDelete?.key}</code></div>
+                <div><span className="text-muted-foreground">Flag ID:</span> <code className="font-mono text-xs">{flagToDelete?.id}</code></div>
+                <div><span className="text-muted-foreground">Type:</span> {flagToDelete?.type}</div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteFlagDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteFlag} disabled={deleting}>
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete Flag'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
 }

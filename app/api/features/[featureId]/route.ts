@@ -90,3 +90,47 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ feat
 }
 
 
+// Function to delete a feature and its environments
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ featureId: string }> }) {
+    try {
+        const session = await auth.api.getSession({ headers: await headers() });
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        const [userData] = await db
+            .select()
+            .from(user)
+            .where(eq(user.id, session.user.id))
+            .limit(1);
+        if (!userData || !userData.email) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
+        
+        const { featureId } = await params;
+        if (!featureId) {
+            return NextResponse.json({ error: "Feature Id Not Found" }, { status: 400 });
+        }
+
+        // First delete all feature environments
+        await db
+            .delete(featureEnvironments)
+            .where(eq(featureEnvironments.featureId, featureId));
+
+        // Then delete the feature itself
+        const deleted = await db
+            .delete(features)
+            .where(eq(features.id, featureId))
+            .returning();
+
+        if (!deleted.length) {
+            return NextResponse.json({ error: "Feature not found" }, { status: 404 });
+        }
+
+        return NextResponse.json({ message: "Feature deleted successfully" });
+    } catch (err) {
+        console.error("Error deleting feature:", err);
+        return NextResponse.json({ error: "Failed to delete feature" }, { status: 500 });
+    }
+}
+
+
