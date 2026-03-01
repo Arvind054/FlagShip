@@ -1,16 +1,26 @@
 import { evaluateRules } from "@/lib/evaluateRules";
-import { redis } from "@/lib/radis";
+
 import { isInRollout } from "@/lib/rolloutPercenatge";
 import { db } from "@/src/DB";
 import { featureEnvironments, features, projects } from "@/src/DB/schema";
 import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
+const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function OPTIONS() {
+    return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function POST(req: NextRequest) {
     try {
         const { apiKey, featureKey, environment, user } = await req.json();
-
         // Checking for Cache
+        /*
         const cacheKey = `flag:${apiKey}:${featureKey}:${environment}`;
         let config;
         try {
@@ -23,6 +33,7 @@ export async function POST(req: NextRequest) {
         }
         // Validation for feature ->project
         if (!config) {
+        */
             const result = await db
                 .select({
                     status: featureEnvironments.status,
@@ -45,35 +56,37 @@ export async function POST(req: NextRequest) {
                 .limit(1);
 
             if (!result.length) {
-                return NextResponse.json({ enabled: false });
+                return NextResponse.json({ enabled: false }, { headers: corsHeaders });
             }
 
-            config = result[0];
+           let config = result[0];
 
             // Cache config only
+            /*
             try {
                 await redis.set(cacheKey, JSON.stringify(config), "EX", 120);
             } catch (err) {
                 console.error("Redis set failed:", err);
             }
         }
+                */
 
         if (!config.status) {
-            return NextResponse.json({ enabled: false });
+            return NextResponse.json({ enabled: false }, { headers: corsHeaders });
         }
 
         if (config.rules && !evaluateRules(config.rules, user)) {
-            return NextResponse.json({ enabled: false });
+            return NextResponse.json({ enabled: false }, { headers: corsHeaders });
         }
 
         if (!isInRollout(user?.id, config.rolloutPercentage)) {
-            return NextResponse.json({ enabled: false });
+            return NextResponse.json({ enabled: false }, { headers: corsHeaders });
         }
 
-        return NextResponse.json({ enabled: true });
+        return NextResponse.json({ enabled: true }, { headers: corsHeaders });
 
     } catch (err) {
         console.log("error ", err);
-        return NextResponse.json({ enabled: false });
+        return NextResponse.json({ enabled: false }, { headers: corsHeaders });
     }
 }
