@@ -1,35 +1,14 @@
-// Redis initialisation
-/*
-import Redis from 'ioredis';
+import { createClient } from 'redis';
 
-const createRedisClient = () => {
-  if (!process.env.REDIS_URL) {
-    console.warn('REDIS_URL not configured - Redis features will be disabled');
-    return null;
-  }
+export const radisClient = createClient({
+    username: 'default',
+    password: process.env.REDIS_PASSWORD,
+    socket: {
+        host: 'redis-19345.crce283.ap-south-1-2.ec2.cloud.redislabs.com',
+        port: 19345
+    }
+});
 
-  const client = new Redis(process.env.REDIS_URL, {
-    maxRetriesPerRequest: 3,
-    retryStrategy(times) {
-      if (times > 3) {
-        console.error('Redis connection failed after 3 retries');
-        return null; // Stop retrying
-      }
-      return Math.min(times * 200, 2000);
-    },
-    lazyConnect: true,
-  });
+radisClient.on('error', err => console.log('Redis Client Error', err));
 
-  client.on('error', (err) => {
-    console.error('Redis connection error:', err.message);
-  });
-
-  client.on('connect', () => {
-    console.log('Redis connected successfully');
-  });
-
-  return client;
-};
-
-export const redis = createRedisClient();
-*/
+await radisClient.connect();
