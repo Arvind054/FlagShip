@@ -2,8 +2,21 @@ import { relations } from "drizzle-orm";
 import { foreignKey } from "drizzle-orm/gel-core";
 import { pgTable, text, timestamp, boolean, index, integer, varchar, uuid, jsonb } from "drizzle-orm/pg-core";
 
-// Project Schema
 
+//Audit Logs Schema
+export const auditLogs = pgTable('audit_logs', {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId : uuid("projectId").notNull().references(()=>projects.id, {onDelete: "cascade"}),
+    featureId : uuid("featureId").notNull().references(()=>features.id, {onDelete: "cascade"}),
+    environment: text("environment").notNull(),
+    action_type: text("action_type").notNull(),
+    oldConfig : jsonb("oldConfig"),
+    newConfig: jsonb("newConfig"),
+    updatedBy: text("updatedBy").references(()=>user.id).notNull(),
+    createdAt: timestamp("createdAt", {withTimezone:true}).defaultNow(),
+})
+
+// Project Schema
 export const projects = pgTable("projects", {
     id: uuid("id").defaultRandom().primaryKey(),
     name: text("name").notNull(),
