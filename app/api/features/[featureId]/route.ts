@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/src/DB";
-import { featureEnvironments, features, user } from "@/src/DB/schema";
-import { and, eq } from "drizzle-orm";
+import { auditLogs, featureEnvironments, features, user } from "@/src/DB/schema";
+import { and, desc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -26,7 +26,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ fe
         if(!environment){
             return NextResponse.json({error: "Environment not Found"}, {status:500});
         }
-         const updated = await db
+        
+        // Get the current config before updating (for audit log)
+        const [currentEnv] = await db
+            .select()
+            .from(featureEnvironments)
+            .where(
+                and(
+                    eq(featureEnvironments.featureId, featureId),
+                    eq(featureEnvironments.environment, environment)
+                )
+            )
+            .limit(1);
+        
+        const oldConfig = currentEnv ? {
+            environment,
+            status: currentEnv.status,
+            rolloutPercentage: currentEnv.rolloutPercentage,
+            rules: currentEnv.rules
+        } : null;
+        
+        const updated = await db
       .update(featureEnvironments)
       .set({
         ...(status !== undefined && { status }),
@@ -41,9 +61,46 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ fe
       )
       .returning();
 
+        const newConfig = {
+            environment,
+            status: updated[0]?.status,
+            rolloutPercentage: updated[0]?.rolloutPercentage,
+            rules: updated[0]?.rules
+        };
+        
+        // Get the feature to get projectId for audit log
+        const [feature] = await db
+            .select()
+            .from(features)
+            .where(eq(features.id, featureId))
+            .limit(1);
+        
+        if (feature?.projectId) {
+            // Determine action type
+            let actionType = 'Environment Updated';
+            if (status !== undefined && rolloutPercentage === undefined && rules === undefined) {
+                actionType = `${environment.toUpperCase()} Status Changed`;
+            } else if (rolloutPercentage !== undefined && status === undefined && rules === undefined) {
+                actionType = `${environment.toUpperCase()} Rollout Changed`;
+            } else if (rules !== undefined && status === undefined && rolloutPercentage === undefined) {
+                actionType = 'Targeting Rules Updated';
+            }
+            
+            // Save audit log
+            await db.insert(auditLogs).values({
+                projectId: feature.projectId,
+                featureId: featureId,
+                action_type: actionType,
+                oldConfig: oldConfig,
+                newConfig: newConfig,
+                updatedBy: session.user.id
+            });
+        }
+
     return NextResponse.json(updated[0]);
     }
     catch (err) {
+        console.error("Error updating environment:", err);
         return NextResponse.json({ error: "Failed to Update the feature Environments" }, { status: 500 });
     }
 }
@@ -77,11 +134,31 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ feat
             .select()
             .from(featureEnvironments)
             .where(eq(featureEnvironments.featureId, featureId));
-
+        
+        // Get audit logs with user info
+        const logs = await db
+            .select({
+                id: auditLogs.id,
+                projectId: auditLogs.projectId,
+                featureId: auditLogs.featureId,
+                action_type: auditLogs.action_type,
+                oldConfig: auditLogs.oldConfig,
+                newConfig: auditLogs.newConfig,
+                updatedBy: auditLogs.updatedBy,
+                createdAt: auditLogs.createdAt,
+                userName: user.name,
+                userEmail: user.email,
+            })
+            .from(auditLogs)
+            .leftJoin(user, eq(auditLogs.updatedBy, user.id))
+            .where(eq(auditLogs.featureId, featureId))
+            .orderBy(desc(auditLogs.createdAt));
+            
         return NextResponse.json({
             ...feature,
             environments,
-            lastUpdated: feature.createdAt // Use createdAt as lastUpdated for now
+            auditLogs: logs,
+            lastUpdated: feature.createdAt 
         });
     } catch (err) {
         console.error("Error getting Feature Details:", err);

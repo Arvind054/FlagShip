@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { formatDateTime, formatDate, FeatureFlag, FeatureRule } from "@/lib/mock-data";
-import { ChevronLeft, MoreVertical, Flag, Info, Target, Layers, History, Loader2, Check, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, MoreVertical, Flag, Info, Target, Layers, History, Loader2, Check, Plus, Trash2, RotateCcw, Save } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 
@@ -43,55 +43,155 @@ export default function FlagDetailsPage() {
         prod: false
     });
 
+    // Original values to track changes
+    const [originalRolloutValues, setOriginalRolloutValues] = useState({
+        dev: 0,
+        staging: 0,
+        prod: 0
+    });
+
+    const [originalStatusValues, setOriginalStatusValues] = useState({
+        dev: false,
+        staging: false,
+        prod: false
+    });
+
     const [saving, setSaving] = useState<string | null>(null);
     const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
-    const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({});
 
-    // Function to update environment settings in DB
-    const updateEnvironment = useCallback(async (
-        environment: 'dev' | 'staging' | 'prod',
-        updates: { status?: boolean; rolloutPercentage?: number; rules?: any[] }
-    ) => {
+    // Check if environment has unsaved changes
+    const hasChanges = useCallback((env: 'dev' | 'staging' | 'prod') => {
+        return rolloutValues[env] !== originalRolloutValues[env] || 
+               statusValues[env] !== originalStatusValues[env];
+    }, [rolloutValues, statusValues, originalRolloutValues, originalStatusValues]);
+
+    // Save changes for a specific environment
+    const saveEnvironmentChanges = useCallback(async (env: 'dev' | 'staging' | 'prod') => {
         if (!flagId) return;
         
-        setSaving(environment);
+        setSaving(env);
         try {
             await axios.patch(`/api/features/${flagId}`, {
-                environment,
-                ...updates
+                environment: env,
+                status: statusValues[env],
+                rolloutPercentage: rolloutValues[env]
             });
-            setSaveSuccess(environment);
+            
+            // Update original values to current values after successful save
+            setOriginalRolloutValues(prev => ({ ...prev, [env]: rolloutValues[env] }));
+            setOriginalStatusValues(prev => ({ ...prev, [env]: statusValues[env] }));
+            
+            // Refresh audit logs
+            const result = await axios.get(`/api/features/${flagId}`);
+            setAuditLogs(result.data.auditLogs || []);
+            
+            setSaveSuccess(env);
             setTimeout(() => setSaveSuccess(null), 2000);
         } catch (err) {
-            console.error(`Error updating ${environment}:`, err);
+            console.error(`Error updating ${env}:`, err);
         } finally {
             setSaving(null);
         }
-    }, [flagId]);
+    }, [flagId, statusValues, rolloutValues]);
 
-    // Debounced rollout update
+    // Rollout change handler (no auto-save)
     const handleRolloutChange = useCallback((env: 'dev' | 'staging' | 'prod', value: number) => {
         setRolloutValues(prev => ({ ...prev, [env]: value }));
-        
-        // Clear existing timer
-        if (debounceTimers.current[env]) {
-            clearTimeout(debounceTimers.current[env]);
-        }
-        
-        // Set new timer to save after 500ms of no changes
-        debounceTimers.current[env] = setTimeout(() => {
-            updateEnvironment(env, { rolloutPercentage: value });
-        }, 500);
-    }, [updateEnvironment]);
+    }, []);
 
-    // Status toggle handler
+    // Status toggle handler (no auto-save)
     const handleStatusChange = useCallback((env: 'dev' | 'staging' | 'prod', checked: boolean) => {
         setStatusValues(prev => ({ ...prev, [env]: checked }));
-        updateEnvironment(env, { status: checked });
-    }, [updateEnvironment]);
+    }, []);
 
-    // Mock audit logs - in production this would come from the API
-    const auditLogs: { id: string; action: string; details: string; user: string; timestamp: Date }[] = [];
+    // Audit logs type and state
+    type AuditLog = {
+        id: string;
+        projectId: string;
+        featureId: string;
+        action_type: string;
+        oldConfig: any;
+        newConfig: any;
+        updatedBy: string;
+        createdAt: string;
+        userName: string | null;
+        userEmail: string | null;
+    };
+    const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+    const [rollingBack, setRollingBack] = useState<string | null>(null);
+
+    // Rollback to previous config
+    const handleRollback = async (log: AuditLog) => {
+        if (!log.oldConfig || !flagId) return;
+        
+        setRollingBack(log.id);
+        try {
+            // Apply the old config to all environments
+            const oldConfig = log.oldConfig as any;
+            
+            if (oldConfig.environment) {
+                // Single environment rollback
+                await axios.patch(`/api/features/${flagId}`, {
+                    environment: oldConfig.environment,
+                    status: oldConfig.status,
+                    rolloutPercentage: oldConfig.rolloutPercentage,
+                    rules: oldConfig.rules
+                });
+            } else if (oldConfig.rules !== undefined) {
+                // Rules rollback - apply to all environments
+                await Promise.all(['dev', 'staging', 'prod'].map(env =>
+                    axios.patch(`/api/features/${flagId}`, {
+                        environment: env,
+                        rules: oldConfig.rules
+                    })
+                ));
+                setRules(oldConfig.rules || []);
+            }
+            
+            // Refresh flag data
+            const result = await axios.get(`/api/features/${flagId}`);
+            const flagData = result.data;
+            setFlag(flagData);
+            setAuditLogs(flagData.auditLogs || []);
+            
+            // Update state from refreshed data
+            if (flagData.environments) {
+                const getRollout = (env: string) => {
+                    const envData = flagData.environments.find((e: any) => e.environment === env);
+                    return envData?.rolloutPercentage ?? 0;
+                };
+                const getStatus = (env: string) => {
+                    const envData = flagData.environments.find((e: any) => e.environment === env);
+                    return envData?.status ?? false;
+                };
+                setRolloutValues({
+                    dev: getRollout('dev'),
+                    staging: getRollout('staging'),
+                    prod: getRollout('prod')
+                });
+                setStatusValues({
+                    dev: getStatus('dev'),
+                    staging: getStatus('staging'),
+                    prod: getStatus('prod')
+                });
+                // Also update original values after rollback
+                setOriginalRolloutValues({
+                    dev: getRollout('dev'),
+                    staging: getRollout('staging'),
+                    prod: getRollout('prod')
+                });
+                setOriginalStatusValues({
+                    dev: getStatus('dev'),
+                    staging: getStatus('staging'),
+                    prod: getStatus('prod')
+                });
+            }
+        } catch (err) {
+            console.error('Error rolling back:', err);
+        } finally {
+            setRollingBack(null);
+        }
+    };
 
     // Targeting rules state
     const [rules, setRules] = useState<FeatureRule[]>([]);
@@ -170,11 +270,28 @@ export default function FlagDetailsPage() {
                         prod: getStatus('prod')
                     });
                     
+                    // Set original values for change tracking
+                    setOriginalRolloutValues({
+                        dev: getRollout('dev'),
+                        staging: getRollout('staging'),
+                        prod: getRollout('prod')
+                    });
+                    setOriginalStatusValues({
+                        dev: getStatus('dev'),
+                        staging: getStatus('staging'),
+                        prod: getStatus('prod')
+                    });
+                    
                     // Load rules from first environment that has them
                     const envWithRules = flagData.environments.find((e: any) => e.rules && e.rules.length > 0);
                     if (envWithRules?.rules) {
                         setRules(envWithRules.rules);
                     }
+                }
+                
+                // Set audit logs from API response
+                if (flagData.auditLogs) {
+                    setAuditLogs(flagData.auditLogs);
                 }
              }catch(err: any){
                console.log("Error fetching flag:", err);
@@ -184,11 +301,6 @@ export default function FlagDetailsPage() {
              }
          }
          getFlagData();
-
-         // Cleanup debounce timers on unmount
-         return () => {
-            Object.values(debounceTimers.current).forEach(timer => clearTimeout(timer));
-         };
     }, [flagId]);
 
     if (loading) {
@@ -552,6 +664,26 @@ export default function FlagDetailsPage() {
                     className="cursor-pointer"
                   />
                 </div>
+
+                {hasChanges('dev') && (
+                  <Button
+                    onClick={() => saveEnvironmentChanges('dev')}
+                    disabled={saving === 'dev'}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    {saving === 'dev' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
@@ -601,6 +733,26 @@ export default function FlagDetailsPage() {
                     className="cursor-pointer"
                   />
                 </div>
+
+                {hasChanges('staging') && (
+                  <Button
+                    onClick={() => saveEnvironmentChanges('staging')}
+                    disabled={saving === 'staging'}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    {saving === 'staging' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
@@ -650,6 +802,26 @@ export default function FlagDetailsPage() {
                     className="cursor-pointer"
                   />
                 </div>
+
+                {hasChanges('prod') && (
+                  <Button
+                    onClick={() => saveEnvironmentChanges('prod')}
+                    disabled={saving === 'prod'}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    {saving === 'prod' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -663,27 +835,71 @@ export default function FlagDetailsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {auditLogs.map((log, index) => (
-                  <div
-                    key={log.id}
-                    className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 border border-border"
-                  >
-                    <div className="p-2 rounded-full bg-primary/10">
-                      <History className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground">{log.action}</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {log.details}
-                      </p>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                        <span className="font-medium">{log.user}</span>
-                        <span>•</span>
-                        <span>{formatDateTime(log.timestamp)}</span>
+                {auditLogs.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No audit logs yet</p>
+                ) : (
+                  auditLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 border border-border"
+                    >
+                      <div className="p-2 rounded-full bg-primary/10">
+                        <History className="w-4 h-4 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-foreground">{log.action_type}</p>
+                          {log.oldConfig && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRollback(log)}
+                              disabled={rollingBack === log.id}
+                              className="text-xs"
+                            >
+                              {rollingBack === log.id ? (
+                                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              ) : (
+                                <RotateCcw className="w-3 h-3 mr-1" />
+                              )}
+                              Rollback
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {/* Config changes */}
+                        <div className="mt-3 space-y-2">
+                          {log.oldConfig && (
+                            <div className="text-sm">
+                              <span className="text-muted-foreground">Previous: </span>
+                              <code className="bg-red-500/10 text-red-600 dark:text-red-400 px-2 py-1 rounded text-xs">
+                                {typeof log.oldConfig === 'object' 
+                                  ? JSON.stringify(log.oldConfig, null, 2) 
+                                  : String(log.oldConfig)}
+                              </code>
+                            </div>
+                          )}
+                          {log.newConfig && (
+                            <div className="text-sm">
+                              <span className="text-muted-foreground">New: </span>
+                              <code className="bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-1 rounded text-xs">
+                                {typeof log.newConfig === 'object' 
+                                  ? JSON.stringify(log.newConfig, null, 2) 
+                                  : String(log.newConfig)}
+                              </code>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+                          <span className="font-medium">{log.userName || log.userEmail || log.updatedBy}</span>
+                          <span>•</span>
+                          <span>{formatDateTime(new Date(log.createdAt))}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
