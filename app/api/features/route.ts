@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/src/DB";
-import { featureEnvironments, features, user } from "@/src/DB/schema";
+import { featureEnvironments, features, user, auditLogs } from "@/src/DB/schema";
 import { eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -34,6 +34,12 @@ export async function POST(req: NextRequest){
             {featureId, environment: "staging"},
             {featureId, environment: "prod"}
            ]);
+         const log = await db.insert(auditLogs).values({
+            projectId,
+            featureId,
+            action_type: "Feature Created",
+            updatedBy: userData?.id,
+        }).returning();
            return NextResponse.json(feature[0],{status: 201});
 
     }catch(err){

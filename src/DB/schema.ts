@@ -8,7 +8,6 @@ export const auditLogs = pgTable('audit_logs', {
     id: uuid("id").defaultRandom().primaryKey(),
     projectId : uuid("projectId").notNull().references(()=>projects.id, {onDelete: "cascade"}),
     featureId : uuid("featureId").notNull().references(()=>features.id, {onDelete: "cascade"}),
-    environment: text("environment").notNull(),
     action_type: text("action_type").notNull(),
     oldConfig : jsonb("oldConfig"),
     newConfig: jsonb("newConfig"),
