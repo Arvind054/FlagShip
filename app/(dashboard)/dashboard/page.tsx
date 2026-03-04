@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Activity, Flag, Zap, TrendingUp, ArrowUpRight, Loader2 } from "lucide-react";
 import Link from "next/link";
-
+import {useQuery} from "@tanstack/react-query";
 interface FeatureEnvironment {
   id: string;
   featureId: string;
@@ -46,29 +46,28 @@ interface DashboardData {
 }
 
 export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  //const [data, setData] = useState<DashboardData | null>(null);
+  //const [loading, setLoading] = useState(true);
+  //const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchDashboardData() {
+ const {data, isLoading, error} = useQuery<DashboardData>({
+  queryKey: ["dashboard"],
+  queryFn: fetchDashboardData,
+  staleTime: 1000*60*5,
+ });
+
+ async function fetchDashboardData() {
       try {
         const response = await fetch("/api/dashboard");
         if (!response.ok) {
           throw new Error("Failed to fetch dashboard data");
         }
         const dashboardData = await response.json();
-        setData(dashboardData);
+        return dashboardData;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setLoading(false);
-      }
+        throw new Error(err instanceof Error ? err.message : "An error occurred");
+      } 
     }
-
-    fetchDashboardData();
-  }, []);
-
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -86,7 +85,7 @@ export default function DashboardPage() {
     return Math.max(...rollouts);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -98,7 +97,7 @@ export default function DashboardPage() {
     return (
       <div className="p-8">
         <div className="text-center text-destructive">
-          <p>Error: {error}</p>
+          <p>Error: {error.message}</p>
         </div>
       </div>
     );
