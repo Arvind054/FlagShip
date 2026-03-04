@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { signUp, signIn } from "@/lib/auth-client"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-
+import { useSession} from "@/lib/auth-client";
 export default function SignupPage() {
   const router = useRouter()
   const [name, setName] = useState("")
@@ -17,7 +17,14 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+ const { data: session, isPending } = useSession();
 
+ useEffect(()=>{
+      if(!isPending && session?.user){
+        router.push("/dashboard");
+      }
+      return ;
+    },[isPending,session]);
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
