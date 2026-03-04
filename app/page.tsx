@@ -17,6 +17,7 @@ import {
   Monitor,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import { useSession} from "@/lib/auth-client";
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -45,6 +46,7 @@ function ThemeToggle() {
 }
 
 export default function Home() {
+   const { data: session, isPending } = useSession();
   const features = [
     {
       icon: Flag,
@@ -158,17 +160,20 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
+            {
+              (isPending || !session?.user) &&
             <Link
-              href="/login"
+              href= { (!isPending && session?.user)? "/dashboard" : "/login"}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Sign In
             </Link>
+           }
             <Link
-              href="/signup"
+              href= { (!isPending && session?.user)? "/dashboard" : "/login"}
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors"
             >
-              Get Started
+             {(!isPending && session?.user)? "Dashboard" : "Get Started"} 
             </Link>
           </div>
         </div>
