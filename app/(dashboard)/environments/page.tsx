@@ -53,11 +53,11 @@ export default function EnvironmentsPage() {
           const Icon = env.icon;
           return (
             <Card key={env.key} className="border-border bg-card overflow-hidden relative group hover:shadow-lg transition-shadow duration-300">
-              <div className={`absolute inset-0 bg-gradient-to-br ${env.bgGradient} opacity-50`} />
+              <div className={`absolute inset-0 bg-linear-to-br ${env.bgGradient} opacity-50`} />
               <CardHeader className="relative">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg bg-gradient-to-br ${env.gradient} shadow-lg`}>
+                    <div className={`p-2 rounded-lg bg-linear-to-br ${env.gradient} shadow-lg`}>
                       <Icon className="w-5 h-5 text-white" />
                     </div>
                     <CardTitle className="text-lg text-foreground">{env.name}</CardTitle>

@@ -44,38 +44,62 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "border-r border-border bg-card transition-all duration-300 flex flex-col h-full",
+        "border-r border-border/60 bg-card transition-all duration-300 ease-in-out flex flex-col h-full",
         isOpen ? "w-64" : "w-20"
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        {isOpen && (
-          <div className="flex items-center gap-2">
+      <div className={cn(
+        "flex items-center border-b border-border/60 p-5",
+        isOpen ? "justify-between" : "justify-center"
+      )}>
+        {isOpen ? (
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 bg-linear-to-br from-primary to-blue-400 rounded-lg flex items-center justify-center shadow-lg shadow-primary/25">
               <Flag className="w-5 h-5 text-white" />
             </div>
             <span className="font-bold text-foreground">Flagship</span>
-          </div>
+          </Link>
+        ) : (
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+            <div className="w-10 h-10 bg-linear-to-br from-primary to-blue-400 rounded-xl flex items-center justify-center shadow-lg shadow-primary/25">
+              <Flag className="w-6 h-6 text-white" />
+            </div>
+          </Link>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsOpen(!isOpen)}
-          className="ml-auto text-muted-foreground hover:text-foreground hover:bg-accent"
-        >
-          {isOpen ? (
+        {isOpen && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsOpen(!isOpen)}
+            className="text-muted-foreground hover:text-foreground hover:bg-accent"
+          >
             <ChevronLeft className="w-4 h-4" />
-          ) : (
-            <ChevronRight className="w-4 h-4" />
-          )}
-        </Button>
+          </Button>
+        )}
       </div>
+
+      {/* Expand button when collapsed */}
+      {!isOpen && (
+        <div className="flex justify-center py-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsOpen(!isOpen)}
+            className="text-muted-foreground hover:text-foreground hover:bg-accent"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </Button>
+        </div>
+      )}
 
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-1">
+      <nav className={cn(
+        "flex-1 overflow-y-auto py-4",
+        isOpen ? "px-4" : "px-2"
+      )}>
+        <div className="space-y-1.5">
           {navigation.map((item) => {
             const isActive = pathname.startsWith(item.href);
             const Icon = item.icon;
@@ -85,13 +109,17 @@ export function Sidebar() {
                 <Button
                   variant="ghost"
                   className={cn(
-                    "w-full justify-start transition-all duration-200",
+                    "w-full transition-all duration-200 h-11",
+                    isOpen ? "justify-start" : "justify-center",
                     isActive
                       ? "bg-primary/10 text-primary hover:bg-primary/15 shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent"
                   )}
                 >
-                  <Icon className={cn("w-5 h-5", isActive && "text-primary")} />
+                  <Icon className={cn(
+                    isOpen ? "w-5 h-5" : "w-6 h-6",
+                    isActive && "text-primary"
+                  )} />
                   {isOpen && <span className="ml-3">{item.name}</span>}
                 </Button>
               </Link>
@@ -102,8 +130,8 @@ export function Sidebar() {
 
       {/* Pro Upgrade Banner */}
       {isOpen && (
-        <div className="p-4 border-t border-border">
-          <div className="p-4 rounded-lg bg-linear-to-br from-primary/10 to-purple-500/10 border border-primary/20">
+        <div className="p-5 border-t border-border/60">
+          <div className="p-4 rounded-xl bg-linear-to-br from-primary/10 to-purple-500/10 border border-primary/20">
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold text-foreground">Upgrade to Pro</span>
@@ -118,8 +146,8 @@ export function Sidebar() {
 
       {/* Footer */}
       {isOpen && session?.user && (
-        <div className="border-t border-border p-4">
-          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent cursor-pointer transition-colors">
+        <div className="border-t border-border/60 p-5">
+          <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent cursor-pointer transition-colors">
             {session.user.image ? (
               <img 
                 src={session.user.image} 
