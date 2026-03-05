@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function ProjectDetailPage() {
     const params = useParams();
@@ -21,7 +22,7 @@ export default function ProjectDetailPage() {
     const [features, setFeatures] = useState<FeatureFlag[]>([]);
     const [loading, setLoading] = useState(true);
     const [copiedKey, setCopiedKey] = useState(false);
-    
+     const queryClient = useQueryClient();
     // Dialog state
     const [dialogOpen, setDialogOpen] = useState(false);
     const [creating, setCreating] = useState(false);
@@ -104,6 +105,7 @@ export default function ProjectDetailPage() {
       setDeleting(true);
       try {
         await axios.delete(`/api/features/${flagToDelete.id}`);
+        queryClient.setQueryData<Project[]>(["projects"], (old) => (old ?? []).filter(p => p.id !== projectId));
         setDeleteFlagDialogOpen(false);
         setFlagToDelete(null);
         getProjectData();
