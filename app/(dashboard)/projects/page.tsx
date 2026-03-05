@@ -25,34 +25,32 @@ import {  maskApiKey, formatDate, Project } from "@/lib/mock-data";
 import { Copy, Eye, Settings, Plus, FolderOpen, Check, Loader2 } from "lucide-react";
 import axios from 'axios';
 import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+async function getAllProjects(): Promise<Project[]> {
+  const result = await axios.get("/api/projects");
+  return result.data;
+}
+
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const { data: projects, isLoading, error } = useQuery<Project[]>({
+    queryKey: ["projects"],
+    queryFn: getAllProjects,
+    staleTime: 1000 * 60 * 5,
+  })
   const handleCopy = (apiKey: string, projectId: string) => {
     navigator.clipboard.writeText(apiKey);
     setCopiedId(projectId);
     setTimeout(() => setCopiedId(null), 2000);
   };
-  
-  async function getAllProjecs(){
-    setLoading(true);
-    try{
-         const result = await axios.get("/api/projects");
-         setProjects(result?.data);
-    }catch(err){
-
-    }finally{
-       setLoading(false);
-    }
-  }
-  useEffect(()=>{
-     getAllProjecs();
-  }, [])
   const handleCreateProject = async() => {
     if (!projectName) {
       return;
@@ -60,21 +58,21 @@ export default function ProjectsPage() {
     setLoading(true);
     try {
         const result = await axios.post('/api/projects', {name: projectName, description: projectDescription});
-        setProjects((prev) => [...prev, result?.data]);
+        queryClient.setQueryData<Project[]>(["projects"], (old) => [ result.data,...(old ?? [])]);
     } catch (err) {
-
+          throw new Error("Error Creating a new Project");
     } finally {
       setLoading(false);
       setDialogOpen(false);
     }
   };
 
-  if(loading){
+  if (isLoading) {
     return (
-       <div className="p-8 space-y-8  flex justify-center align-center">
-             <Loader2 className="animate-spin"/>
+      <div className="p-8 space-y-8 flex justify-center align-center">
+        <Loader2 className="animate-spin" />
       </div>
-    )
+    );
   }
 
   return (
@@ -158,7 +156,7 @@ export default function ProjectsPage() {
                           {project.name}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {project.description?.length > 50 ? project.description.substring(0,47)+ '...': project.description}
+                          {project?.description?.length || 0 > 50 ? project?.description?.substring(0,47)+ '...': project.description}
                         </p>
                       </div>
                     </div>
