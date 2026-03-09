@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Sparkles,
   User,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ const navigation = [
   { name: "Feature Flags", href: "/flags", icon: Flag },
   { name: "Environments", href: "/environments", icon: Zap },
   { name: "Logs", href: "/logs", icon: BarChart3 },
+  { name: "Docs", href: "/docs", icon: BookOpen },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
