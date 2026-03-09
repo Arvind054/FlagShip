@@ -25,6 +25,19 @@ export default function SignupPage() {
       }
       return ;
     },[isPending,session]);
+
+  // Reset loading state if user returns from OAuth without completing
+  useEffect(() => {
+    const handleFocus = () => {
+      // Small delay to allow OAuth redirect to complete if successful
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
