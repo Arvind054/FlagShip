@@ -464,7 +464,7 @@ export default function FlagDetailsPage() {
                     Last Updated
                   </Label>
                   <p className="text-foreground mt-1">
-                    {formatDateTime(flag.lastUpdated)}
+                    {formatDateTime(flag.createdAt)}
                   </p>
                 </div>
                 <div>
