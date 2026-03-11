@@ -66,8 +66,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         if (!deleted.length) {
             return NextResponse.json({ error: "Failed to delete project" }, { status: 500 });
         }
-
-        return NextResponse.json({ message: "Project deleted successfully" });
+        return NextResponse.json({
+            projectId: deleted[0].id,
+             featureCount: projectFeatures.length,}, {status: 201});
     } catch (err) {
         console.error("Error deleting project:", err);
         return NextResponse.json({ error: "Failed to delete project" }, { status: 500 });

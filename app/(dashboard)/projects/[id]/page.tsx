@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { DashboardData } from '../../dashboard/page';
 
 export default function ProjectDetailPage() {
     const params = useParams();
@@ -116,18 +117,35 @@ export default function ProjectDetailPage() {
       }
     };
 
-    const handleDeleteProject = async () => {
-      setDeleting(true);
-      try {
-        await axios.delete(`/api/projects/${projectId}`);
-        router.push('/projects');
-      } catch (err) {
-        console.error('Error deleting project:', err);
-      } finally {
-        setDeleting(false);
-      }
-    };
+  
+    const handleDeleteProject = useMutation({
+         mutationFn : async(projectId: string)=>{
+          setDeleting(true);
+          const res =  await axios.delete(`/api/projects/${projectId}`);
+          if(!res.data.projectId) throw new Error("Error Deleting Project");
+            return {projectId: res.data.projectId , flagCount: res.data.flagCount};
+         },
+         onSuccess: ({projectId, flagCount})=>{ queryClient.setQueryData(["projects"],(oldProjects: Project[])=>{
+            if(!oldProjects)return oldProjects;
+            return oldProjects.filter((project: Project)=> project.id != projectId);
+         });
 
+         queryClient.setQueryData(["dashboard"], (oldData: DashboardData)=>{
+          return {...oldData,
+            projectCount : oldData.projectCount-1,
+            flagCount: oldData.flagCount-flagCount
+            }
+         });
+         setDeleting(false);
+         router.push('/projects');
+         },
+         onError : (error)=>{
+          console.log("error occured, ", error);
+           setDeleting(false);
+           router.push("/projects");
+         },
+        
+    })
     const openDeleteFlagDialog = (flag: FeatureFlag) => {
       setFlagToDelete(flag);
       setDeleteFlagDialogOpen(true);
@@ -191,7 +209,7 @@ export default function ProjectDetailPage() {
                 <Button variant="outline" onClick={() => setDeleteProjectDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button variant="destructive" onClick={handleDeleteProject} disabled={deleting}>
+                <Button variant="destructive" onClick={()=>handleDeleteProject.mutate(projectId)} disabled={deleting}>
                   {deleting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />

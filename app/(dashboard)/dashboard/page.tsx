@@ -37,7 +37,7 @@ interface RecentFlag {
   hasPartialRollout: boolean;
 }
 
-interface DashboardData {
+export interface DashboardData {
   projectCount: number;
   flagCount: number;
   activeFlags: number;
