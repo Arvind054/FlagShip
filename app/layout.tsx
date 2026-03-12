@@ -33,6 +33,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
        <Providers>{children}</Providers>
+       <script
+  defer
+  data-website-id='b3a2459b-e832-4789-8265-ab45e54b06e0'
+  data-domain='https://trackly-beta.vercel.app'
+  src="https://trackly-beta.vercel.app/analytics.js">
+</script>
       </body>
     </html>
   );

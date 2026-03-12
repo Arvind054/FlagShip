@@ -204,7 +204,8 @@ export default function Home() {
               <ArrowRight className="w-5 h-5" />
             </Link>
             <a
-              href="https://github.com/flagship"
+              href="https://github.com/Arvind054/FlagShip"
+              target="_blank"
               className="bg-muted hover:bg-accent text-foreground px-8 py-4 rounded-xl font-semibold text-lg transition-colors flex items-center gap-2"
             >
               <Github className="w-5 h-5" />

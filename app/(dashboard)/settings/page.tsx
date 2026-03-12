@@ -7,8 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { User, CreditCard, Bell, Plug, Slack, Github } from "lucide-react";
-
+import { useSession } from "@/lib/auth-client";
+import { useState } from "react";
 export default function SettingsPage() {
+  const { data: session, isPending } = useSession();
+  const [name, setName] = useState(session?.user?.name || '');
+  const [email, setEmail] = useState(session?.user?.email || '');
   return (
     <div className="p-8 space-y-8">
       <div>
@@ -47,7 +51,6 @@ export default function SettingsPage() {
             Integrations
           </TabsTrigger>
         </TabsList>
-
         {/* Account Tab */}
         <TabsContent value="account" className="space-y-6">
           <Card className="border-border bg-card">
@@ -60,8 +63,9 @@ export default function SettingsPage() {
                 <Label htmlFor="name" className="text-foreground">Full Name</Label>
                 <Input
                   id="name"
-                  defaultValue="John Doe"
+                  value={name}
                   className="border-border bg-muted/50 text-foreground mt-1.5"
+                  onChange={(e)=>setName(e.target.value)}
                 />
               </div>
               <div>
@@ -69,15 +73,8 @@ export default function SettingsPage() {
                 <Input
                   id="email"
                   type="email"
-                  defaultValue="john@example.com"
-                  className="border-border bg-muted/50 text-foreground mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="timezone" className="text-foreground">Timezone</Label>
-                <Input
-                  id="timezone"
-                  defaultValue="UTC-5 (EST)"
+                   value={email}
+                   onChange={(e)=>setEmail(e.target.value)}
                   className="border-border bg-muted/50 text-foreground mt-1.5"
                 />
               </div>
