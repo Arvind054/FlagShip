@@ -3,6 +3,19 @@ import { foreignKey } from "drizzle-orm/gel-core";
 import { pgTable, text, timestamp, boolean, index, integer, varchar, uuid, jsonb } from "drizzle-orm/pg-core";
 
 
+// Analytics Schema : to store the flag Analytics
+export const flagMetrices = pgTable('flagMetrices', {
+    id: uuid("id").defaultRandom().primaryKey(),
+    flagId: uuid("flagId").notNull(),
+    bucketStart: timestamp("bucketStart").notNull(),
+    evaluations: integer("evaluations").default(0).notNull(),
+    enabledCount: integer("enabledCount").default(0).notNull(),
+    disabledCount: integer("disabledCount").default(0).notNull(),
+    cacheHits: integer("cacheHits").default(0).notNull(),
+    cacheMisses: integer("cacheMisses").default(0).notNull(),
+    latencySums: integer("latencySums").default(0).notNull(),
+
+},(table)=>({flagBucketIndex: index('flagBucketIndex').on(table.flagId, table.bucketStart)}));
 //Audit Logs Schema
 export const auditLogs = pgTable('audit_logs', {
     id: uuid("id").defaultRandom().primaryKey(),
