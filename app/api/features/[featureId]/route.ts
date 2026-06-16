@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/src/DB";
-import { auditLogs, featureEnvironments, features, user } from "@/src/DB/schema";
+import { auditLogs, featureEnvironments, features, flagMetrices, user } from "@/src/DB/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -153,11 +153,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ feat
             .leftJoin(user, eq(auditLogs.updatedBy, user.id))
             .where(eq(auditLogs.featureId, featureId))
             .orderBy(desc(auditLogs.createdAt));
-            
+        const featureMetrices = await db.select().from(flagMetrices).where(eq(flagMetrices.flagId, featureId)).limit(24);
         return NextResponse.json({
             ...feature,
             environments,
             auditLogs: logs,
+            analytics: featureMetrices,
             lastUpdated: feature.createdAt 
         });
     } catch (err) {
