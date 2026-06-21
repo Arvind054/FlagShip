@@ -1,8 +1,8 @@
 import { auth } from "@/lib/auth";
 import { generateAPIKey } from "@/lib/generate_API_key";
 import { db } from "@/src/DB";
-import { features, projects, user } from "@/src/DB/schema";
-import { and, eq } from "drizzle-orm";
+import { features, flagMetrices, projects, user } from "@/src/DB/schema";
+import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -33,16 +33,42 @@ export async function GET(req: NextRequest) {
             const projectFeatures = await db.select()
                 .from(features)
                 .where(eq(features.projectId, project[0].id));
+
+            const featureIds = projectFeatures.map((feature) => feature.id);
+            const fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const metrics = featureIds.length ? await db
+                .select()
+                .from(flagMetrices)
+                .where(and(inArray(flagMetrices.flagId, featureIds), gte(flagMetrices.bucketStart, fromDate)))
+                .orderBy(asc(flagMetrices.bucketStart))
+                : [];
+
+            const groupedByDay = metrics.reduce<Record<string, typeof metrics>>((groups, metric) => {
+                const dayKey = new Date(metric.bucketStart).toISOString().slice(0, 10);
+                if (!groups[dayKey]) {
+                    groups[dayKey] = [];
+                }
+
+                groups[dayKey].push(metric);
+                return groups;
+            }, {});
+
+            const analytics = Object.entries(groupedByDay).map(([day, dayMetrics]) => ({
+                day,
+                flagMetrices: dayMetrics,
+            }));
             const response = {
                 ...project[0],
                 features: projectFeatures,
+                analytics,
             };
+
             return NextResponse.json(response);
         }
         const allProjects = await db.select()
             .from(projects)
             .where(eq(projects?.userId, userData?.id));
-      
+
         return NextResponse.json(allProjects);
     } catch (err) {
         return NextResponse.json({ error: "Failed to Create Project" }, { status: 500 });

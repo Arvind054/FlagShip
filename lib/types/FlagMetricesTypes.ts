@@ -1,7 +1,7 @@
 
 
 export type flagMatricesTypes = {
-    flagId: string,
+    flagKey: string,
     evaluationTime: Date,
     isEnabled : boolean,
     isCacheHits:boolean,

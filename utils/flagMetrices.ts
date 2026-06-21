@@ -1,6 +1,6 @@
 import { flagMatricesTypes } from "@/lib/types/FlagMetricesTypes";
 import { db } from "@/src/DB";
-import { flagMetrices } from "@/src/DB/schema";
+import {features, flagMetrices } from "@/src/DB/schema";
 import { and, eq, sql } from "drizzle-orm";
 
 
@@ -11,13 +11,22 @@ import { and, eq, sql } from "drizzle-orm";
 export default async function updateFlagMetrices(flagDetails: flagMatricesTypes) {
     const bucketStart = new Date(flagDetails.evaluationTime);
     bucketStart.setMinutes(0, 0, 0);
+    const [{ id: featureId } = {}] = await db
+        .select({ id: features.id })
+        .from(features)
+        .where(eq(features.key, flagDetails.flagKey))
+        .limit(1);
 
-    const existingTable = await db
+    if (!featureId) {
+        return;
+    }
+
+    const [existingTable] = await db
         .select({ id: flagMetrices.id })
         .from(flagMetrices)
         .where(
             and(
-                eq(flagMetrices.flagId, flagDetails.flagId),
+                eq(flagMetrices.flagId, featureId),
                 eq(flagMetrices.bucketStart, bucketStart),
             ),
         )
@@ -29,7 +38,7 @@ export default async function updateFlagMetrices(flagDetails: flagMatricesTypes)
     const isCacheMiss = flagDetails.isCacheHits ? 0 : 1;
     const latency = Number(flagDetails.timeTakenToEval);
 
-    if (existingTable.length > 0) {
+    if (existingTable) {
         await db
             .update(flagMetrices)
             .set({
@@ -40,13 +49,13 @@ export default async function updateFlagMetrices(flagDetails: flagMatricesTypes)
                 cacheMisses: sql`${flagMetrices.cacheMisses} + ${isCacheMiss}`,
                 latencySums: sql`${flagMetrices.latencySums} + ${latency}`,
             })
-            .where(eq(flagMetrices.id, existingTable[0].id));
+            .where(eq(flagMetrices.id, existingTable.id));
 
         return;
     }
 
     await db.insert(flagMetrices).values({
-        flagId: flagDetails.flagId,
+        flagId: featureId,
         bucketStart,
         evaluations: 1,
         enabledCount: isEnabled,

@@ -1,10 +1,10 @@
 "use client"
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Project, FeatureFlag, formatDate, formatDateTime, maskApiKey } from '@/lib/mock-data';
 import axios from 'axios';
-import { Loader2, ArrowLeft, Copy, Check, Flag, Edit2, Settings, Key, Calendar, FileText, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { Loader2, ArrowLeft, Copy, Check, Flag, Edit2, Key, Calendar, FileText, Plus, Trash2, AlertTriangle, BarChart3, Activity, Gauge, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,15 +12,186 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardData } from '../../dashboard/page';
+
+type ProjectMetric = {
+  id: string;
+  flagId: string;
+  bucketStart: string;
+  evaluations: number;
+  enabledCount: number;
+  disabledCount: number;
+  cacheHits: number;
+  cacheMisses: number;
+  latencySums: number;
+};
+
+type ProjectAnalyticsDay = {
+  day: string;
+  flagMetrices: ProjectMetric[];
+};
+
+type ProjectDetails = Project & {
+  features?: FeatureFlag[];
+  analytics?: ProjectAnalyticsDay[];
+};
+
+type ChartPoint = {
+  day: string;
+  label: string;
+  evaluations: number;
+  enabled: number;
+  disabled: number;
+  cacheHits: number;
+  cacheMisses: number;
+  avgLatency: number;
+};
+
+function formatAnalyticsLabel(day: string) {
+  const parsed = new Date(`${day}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return day;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(parsed);
+}
+
+function createAnalyticsPoints(analytics: ProjectAnalyticsDay[]): ChartPoint[] {
+  return analytics.map((entry) => {
+    const totals = entry.flagMetrices.reduce(
+      (acc, metric) => {
+        acc.evaluations += metric.evaluations ?? 0;
+        acc.enabled += metric.enabledCount ?? 0;
+        acc.disabled += metric.disabledCount ?? 0;
+        acc.cacheHits += metric.cacheHits ?? 0;
+        acc.cacheMisses += metric.cacheMisses ?? 0;
+        acc.latencySums += metric.latencySums ?? 0;
+        return acc;
+      },
+      {
+        evaluations: 0,
+        enabled: 0,
+        disabled: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
+        latencySums: 0,
+      },
+    );
+
+    const totalResponses = totals.enabled + totals.disabled;
+
+    return {
+      day: entry.day,
+      label: formatAnalyticsLabel(entry.day),
+      evaluations: totals.evaluations,
+      enabled: totals.enabled,
+      disabled: totals.disabled,
+      cacheHits: totals.cacheHits,
+      cacheMisses: totals.cacheMisses,
+      avgLatency: totalResponses > 0 ? totals.latencySums / totalResponses : 0,
+    };
+  });
+}
+
+function MiniLineChart({ points, colorClass = "stroke-primary", fillClass = "fill-primary/20", valueKey }: { points: ChartPoint[]; colorClass?: string; fillClass?: string; valueKey: keyof Pick<ChartPoint, "evaluations" | "avgLatency" | "cacheHits" | "cacheMisses">; }) {
+  if (!points.length) {
+    return null;
+  }
+
+  const values = points.map((point) => point[valueKey]);
+  const maxValue = Math.max(...values, 1);
+  const width = 640;
+  const height = 220;
+  const padding = 24;
+  const usableWidth = width - padding * 2;
+  const usableHeight = height - padding * 2;
+  const step = points.length > 1 ? usableWidth / (points.length - 1) : usableWidth;
+
+  const coordinates = points.map((point, index) => {
+    const value = point[valueKey];
+    const x = padding + index * step;
+    const y = padding + usableHeight - (value / maxValue) * usableHeight;
+    return { x, y, value };
+  });
+
+  const linePath = coordinates.map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`).join(" ");
+  const areaPath = `${linePath} L ${padding + usableWidth} ${padding + usableHeight} L ${padding} ${padding + usableHeight} Z`;
+
+  return (
+    <div className="space-y-4">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-55 overflow-visible">
+        <defs>
+          <linearGradient id={`analytics-gradient-${valueKey}`} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        {[0, 1, 2, 3].map((tick) => {
+          const y = padding + (usableHeight / 3) * tick;
+          return <line key={tick} x1={padding} y1={y} x2={width - padding} y2={y} className="stroke-border" strokeDasharray="4 6" />;
+        })}
+        <path d={areaPath} fill={`url(#analytics-gradient-${valueKey})`} className={fillClass} />
+        <path d={linePath} fill="none" strokeWidth="3" className={colorClass} strokeLinecap="round" strokeLinejoin="round" />
+        {coordinates.map((point, index) => (
+          <g key={points[index].day}>
+            <circle cx={point.x} cy={point.y} r="5" className="fill-background stroke-current" strokeWidth="2" />
+            <title>{`${points[index].label}: ${Math.round(point.value)}`}</title>
+          </g>
+        ))}
+      </svg>
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        {points.map((point) => (
+          <div key={point.day} className="text-center min-w-0 flex-1">
+            <div className="font-medium text-foreground">{point.label}</div>
+            <div>{Math.round(point[valueKey])}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MiniBarChart({ points, valueKey, barClass = "bg-primary/80" }: { points: ChartPoint[]; valueKey: keyof Pick<ChartPoint, "evaluations" | "enabled" | "disabled" | "cacheHits" | "cacheMisses">; barClass?: string; }) {
+  if (!points.length) {
+    return null;
+  }
+
+  const maxValue = Math.max(...points.map((point) => point[valueKey]), 1);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-end gap-3 h-55 px-2">
+        {points.map((point) => {
+          const value = point[valueKey];
+          const height = `${Math.max((value / maxValue) * 100, 4)}%`;
+          return (
+            <div key={point.day} className="flex-1 flex flex-col items-center justify-end gap-2 h-full">
+              <div className="w-full flex items-end justify-center h-full">
+                <div className={`w-full max-w-12 rounded-t-xl ${barClass}`} style={{ height }} />
+              </div>
+              <div className="text-center text-xs text-muted-foreground">
+                <div className="font-medium text-foreground">{point.label}</div>
+                <div>{Math.round(value)}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function ProjectDetailPage() {
     const params = useParams();
     const projectId = params.id as string;
     const router = useRouter();
-    const [project, setProject] = useState<Project | null>(null);
+    const [project, setProject] = useState<ProjectDetails | null>(null);
     const [features, setFeatures] = useState<FeatureFlag[]>([]);
+    const [analytics, setAnalytics] = useState<ProjectAnalyticsDay[]>([]);
     const [loading, setLoading] = useState(true);
     const [copiedKey, setCopiedKey] = useState(false);
      const queryClient = useQueryClient();
@@ -41,15 +212,7 @@ export default function ProjectDetailPage() {
     const [flagToDelete, setFlagToDelete] = useState<FeatureFlag | null>(null);
     const [deleting, setDeleting] = useState(false);
 
-    useEffect(() => {
-      if (!projectId) {
-        router.push("/projects");
-        return;
-      }
-      getProjectData();
-    }, [projectId]);
-
-    async function getProjectData() {
+    const getProjectData = useCallback(async () => {
       setLoading(true);
       try {
         const [projectResult, featuresResult] = await Promise.all([
@@ -57,13 +220,22 @@ export default function ProjectDetailPage() {
           axios.get(`/api/features?projectId=${projectId}`)
         ]);
         setProject(projectResult?.data);
+        setAnalytics(projectResult?.data?.analytics || []);
         setFeatures(featuresResult?.data || []);
       } catch (err) {
         console.log("Error fetching Project", err);
       } finally {
         setLoading(false);
       }
-    }
+    }, [projectId]);
+
+    useEffect(() => {
+      if (!projectId) {
+        router.push("/projects");
+        return;
+      }
+      getProjectData();
+    }, [projectId, router, getProjectData]);
 
     const handleCopyApiKey = async () => {
       if (project?.apiKey) {
@@ -150,6 +322,15 @@ export default function ProjectDetailPage() {
       setFlagToDelete(flag);
       setDeleteFlagDialogOpen(true);
     };
+
+    const analyticsPoints = createAnalyticsPoints(analytics);
+    const hasAnalytics = analyticsPoints.some((point) => point.evaluations > 0 || point.enabled > 0 || point.disabled > 0 || point.cacheHits > 0 || point.cacheMisses > 0 || point.avgLatency > 0);
+    const totalEvaluations = analyticsPoints.reduce((sum, point) => sum + point.evaluations, 0);
+    const totalEnabled = analyticsPoints.reduce((sum, point) => sum + point.enabled, 0);
+    const totalDisabled = analyticsPoints.reduce((sum, point) => sum + point.disabled, 0);
+    const totalCacheHits = analyticsPoints.reduce((sum, point) => sum + point.cacheHits, 0);
+    const totalCacheMisses = analyticsPoints.reduce((sum, point) => sum + point.cacheMisses, 0);
+    const avgLatency = analyticsPoints.length ? analyticsPoints.reduce((sum, point) => sum + point.avgLatency, 0) / analyticsPoints.length : 0;
 
     if (loading) {
       return (
@@ -292,9 +473,126 @@ export default function ProjectDetailPage() {
           </CardContent>
         </Card>
 
+        {/* Analytics Section */}
+        <Card className="border-border bg-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-primary" />
+                  Analytics
+                </CardTitle>
+                <CardDescription>Project activity and evaluation trends from the last 24 hours</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {!hasAnalytics ? (
+                  <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-12 text-center space-y-2">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-background shadow-sm">
+                      <Activity className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-base font-medium text-foreground">Not enough data available</p>
+                    <p className="text-sm text-muted-foreground">Analytics will appear here once this project starts receiving evaluations.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
+                      <div className="rounded-xl border border-border bg-muted/20 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Evaluations</p>
+                        <p className="mt-2 text-2xl font-semibold text-foreground">{totalEvaluations}</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/20 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Enabled</p>
+                        <p className="mt-2 text-2xl font-semibold text-foreground">{totalEnabled}</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/20 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Disabled</p>
+                        <p className="mt-2 text-2xl font-semibold text-foreground">{totalDisabled}</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/20 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Cache hits</p>
+                        <p className="mt-2 text-2xl font-semibold text-foreground">{totalCacheHits}</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/20 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Cache misses</p>
+                        <p className="mt-2 text-2xl font-semibold text-foreground">{totalCacheMisses}</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/20 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Avg latency</p>
+                        <p className="mt-2 text-2xl font-semibold text-foreground">{Math.round(avgLatency)}ms</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                      <div className="rounded-2xl border border-border bg-background p-5">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                          <div>
+                            <h3 className="text-base font-semibold text-foreground">Evaluations over time</h3>
+                            <p className="text-sm text-muted-foreground">Daily request volume for this project</p>
+                          </div>
+                          <TrendingUp className="h-5 w-5 text-primary" />
+                        </div>
+                        <MiniLineChart points={analyticsPoints} valueKey="evaluations" />
+                      </div>
+
+                      <div className="rounded-2xl border border-border bg-background p-5">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                          <div>
+                            <h3 className="text-base font-semibold text-foreground">Enabled vs disabled</h3>
+                            <p className="text-sm text-muted-foreground">Aggregate flag decisions from the same period</p>
+                          </div>
+                          <Gauge className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="rounded-xl border border-border bg-muted/20 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Enabled counts</p>
+                            <MiniBarChart points={analyticsPoints} valueKey="enabled" barClass="bg-emerald-500/80" />
+                          </div>
+                          <div className="rounded-xl border border-border bg-muted/20 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Disabled counts</p>
+                            <MiniBarChart points={analyticsPoints} valueKey="disabled" barClass="bg-rose-500/80" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                      <div className="rounded-2xl border border-border bg-background p-5">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                          <div>
+                            <h3 className="text-base font-semibold text-foreground">Cache performance</h3>
+                            <p className="text-sm text-muted-foreground">Hits and misses collected from evaluations</p>
+                          </div>
+                          <Activity className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="rounded-xl border border-border bg-muted/20 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Cache hits</p>
+                            <MiniBarChart points={analyticsPoints} valueKey="cacheHits" barClass="bg-sky-500/80" />
+                          </div>
+                          <div className="rounded-xl border border-border bg-muted/20 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Cache misses</p>
+                            <MiniBarChart points={analyticsPoints} valueKey="cacheMisses" barClass="bg-amber-500/80" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-border bg-background p-5">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                          <div>
+                            <h3 className="text-base font-semibold text-foreground">Average latency</h3>
+                            <p className="text-sm text-muted-foreground">Mean evaluation time derived from latency sums</p>
+                          </div>
+                          <BarChart3 className="h-5 w-5 text-primary" />
+                        </div>
+                        <MiniLineChart points={analyticsPoints} valueKey="avgLatency" colorClass="stroke-cyan-500" fillClass="fill-cyan-500/20" />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+        </Card>
+
         {/* Feature Flags Section */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <h2 className="text-xl font-semibold text-foreground">Feature Flags</h2>
               <p className="text-muted-foreground text-sm">Manage feature flags for this project</p>

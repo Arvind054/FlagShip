@@ -1,8 +1,9 @@
 import { evaluateRules } from "@/lib/evaluateRules";
-import { radisClient } from "@/lib/radis";
+//import { radisClient } from "@/lib/radis";
 import { isInRollout } from "@/lib/rolloutPercenatge";
 import { db } from "@/src/DB";
 import { featureEnvironments, features, projects } from "@/src/DB/schema";
+import updateFlagMetrices from "@/utils/flagMetrices";
 import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -17,19 +18,37 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
+    const startTime = Date.now();
+    const flagMetricesData = {
+        flagKey: "",
+        evaluationTime: new Date(),
+        isEnabled: false,
+        isCacheHits: false,
+        timeTakenToEval: 0,
+    };
+
     try {
-        const { apiKey, featureKey, environment, user } = await req.json();
+        const body = await req.json();
+        const { apiKey, featureKey, environment, user } = body;
+        if (!featureKey || !apiKey) {
+            throw new Error("Feature Key Not found");
+
+        }
+
         // Checking for Cache
         const cacheKey = `flag:${apiKey}:${featureKey}:${environment}`;
+        flagMetricesData.flagKey = featureKey;
         let config;
-        try {
+      /*  try {
             const cached = await radisClient.get(cacheKey);
             if (cached) {
                 config = JSON.parse(cached);
+                flagMetricesData.isCacheHits = true;
             }
         } catch (err) {
             console.log("error occured ", err);
         }
+            */
         // Validation for feature ->project
         if (!config) {
             const result = await db
@@ -52,38 +71,61 @@ export async function POST(req: NextRequest) {
                     )
                 )
                 .limit(1);
-
             if (!result.length) {
+                flagMetricesData.isEnabled = false;
+                flagMetricesData.evaluationTime = new Date();
+                flagMetricesData.timeTakenToEval = Date.now() - startTime;
+                await updateFlagMetrices(flagMetricesData);
                 return NextResponse.json({ enabled: false }, { headers: corsHeaders });
             }
 
-           let config = result[0];
+            config = result[0];
 
             // Cache config only
-        
+        /*
             try {
                 await radisClient.set(cacheKey,JSON.stringify(config),{EX:300,});
             } catch (err) {
                 console.error("Redis set failed:", err);
             }
+                */
         }
                 
         if (!config.status) {
+              flagMetricesData.isEnabled = false;
+              flagMetricesData.evaluationTime = new Date();
+              flagMetricesData.timeTakenToEval = Date.now() - startTime;
+              await updateFlagMetrices(flagMetricesData);
             return NextResponse.json({ enabled: false }, { headers: corsHeaders });
         }
 
         if (config.rules && !evaluateRules(config.rules, user)) {
+             flagMetricesData.isEnabled = false;
+             flagMetricesData.evaluationTime = new Date();
+             flagMetricesData.timeTakenToEval = Date.now() - startTime;
+             await updateFlagMetrices(flagMetricesData);
             return NextResponse.json({ enabled: false }, { headers: corsHeaders });
         }
 
         if (!isInRollout(user?.id, config.rolloutPercentage)) {
+             flagMetricesData.isEnabled = false;
+            flagMetricesData.evaluationTime = new Date();
+            flagMetricesData.timeTakenToEval = Date.now() - startTime;
+            await updateFlagMetrices(flagMetricesData);
             return NextResponse.json({ enabled: false }, { headers: corsHeaders });
         }
-
+          flagMetricesData.isEnabled = true;
+         flagMetricesData.evaluationTime = new Date();
+         flagMetricesData.timeTakenToEval = Date.now() - startTime;
+         await updateFlagMetrices(flagMetricesData);
         return NextResponse.json({ enabled: true }, { headers: corsHeaders });
 
     } catch (err) {
         console.log("error ", err);
+         flagMetricesData.isEnabled = false;
+        flagMetricesData.evaluationTime = new Date();
+        flagMetricesData.timeTakenToEval = Date.now() - startTime;
+        await updateFlagMetrices(flagMetricesData);
         return NextResponse.json({ enabled: false }, { headers: corsHeaders });
     }
 }
