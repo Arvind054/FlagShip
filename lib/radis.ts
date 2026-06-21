@@ -1,14 +1,21 @@
 import { createClient } from 'redis';
 
-export const radisClient = createClient({
+// Redis Caching 
+export const redisClient = createClient({
     username: 'default',
     password: process.env.REDIS_PASSWORD,
     socket: {
-        host: 'redis-19345.crce283.ap-south-1-2.ec2.cloud.redislabs.com',
-        port: 19345
+        host: process.env.REDIS_HOST,
+        port: 19345,
+         reconnectStrategy: (retries) => {
+            if (retries > 3) { return false; }
+            return 1000;
+        }
     }
 });
 
-radisClient.on('error', err => console.log('Redis Client Error', err));
+redisClient.on('error', err => console.log('Redis Client Error', err));
 
-await radisClient.connect();
+await redisClient.connect()
+.then(()=>console.log("Redis Connected Successfully."))
+.catch(()=>console.log("Redis Connection Failled."))
