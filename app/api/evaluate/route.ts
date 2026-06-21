@@ -1,5 +1,5 @@
 import { evaluateRules } from "@/lib/evaluateRules";
-//import { radisClient } from "@/lib/radis";
+import { redisClient } from "@/lib/radis";
 import { isInRollout } from "@/lib/rolloutPercenatge";
 import { db } from "@/src/DB";
 import { featureEnvironments, features, projects } from "@/src/DB/schema";
@@ -39,8 +39,10 @@ export async function POST(req: NextRequest) {
         const cacheKey = `flag:${apiKey}:${featureKey}:${environment}`;
         flagMetricesData.flagKey = featureKey;
         let config;
-      /*  try {
-            const cached = await radisClient.get(cacheKey);
+       
+        if(redisClient.isReady){
+        try {
+            const cached = await redisClient.get(cacheKey);
             if (cached) {
                 config = JSON.parse(cached);
                 flagMetricesData.isCacheHits = true;
@@ -48,7 +50,7 @@ export async function POST(req: NextRequest) {
         } catch (err) {
             console.log("error occured ", err);
         }
-            */
+       }
         // Validation for feature ->project
         if (!config) {
             const result = await db
@@ -82,13 +84,13 @@ export async function POST(req: NextRequest) {
             config = result[0];
 
             // Cache config only
-        /*
+        if(redisClient.isReady){
             try {
-                await radisClient.set(cacheKey,JSON.stringify(config),{EX:300,});
+                await redisClient.set(cacheKey,JSON.stringify(config),{EX:300,});
             } catch (err) {
                 console.error("Redis set failed:", err);
             }
-                */
+         }
         }
                 
         if (!config.status) {
