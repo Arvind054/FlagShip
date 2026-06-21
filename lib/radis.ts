@@ -1,5 +1,6 @@
 import { createClient } from 'redis';
 
+// Redis Caching 
 export const redisClient = createClient({
     username: 'default',
     password: process.env.REDIS_PASSWORD,
@@ -7,9 +8,7 @@ export const redisClient = createClient({
         host: process.env.REDIS_HOST,
         port: 19345,
          reconnectStrategy: (retries) => {
-            if (retries > 3) {
-                return false; 
-            }
+            if (retries > 3) { return false; }
             return 1000;
         }
     }
