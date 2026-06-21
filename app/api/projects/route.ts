@@ -36,12 +36,11 @@ export async function GET(req: NextRequest) {
 
             const featureIds = projectFeatures.map((feature) => feature.id);
             const fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
-            const metrics = featureIds.length
-                ? await db
-                    .select()
-                    .from(flagMetrices)
-                    .where(and(inArray(flagMetrices.flagId, featureIds), gte(flagMetrices.bucketStart, fromDate)))
-                    .orderBy(asc(flagMetrices.bucketStart))
+            const metrics = featureIds.length ? await db
+                .select()
+                .from(flagMetrices)
+                .where(and(inArray(flagMetrices.flagId, featureIds), gte(flagMetrices.bucketStart, fromDate)))
+                .orderBy(asc(flagMetrices.bucketStart))
                 : [];
 
             const groupedByDay = metrics.reduce<Record<string, typeof metrics>>((groups, metric) => {
@@ -58,19 +57,18 @@ export async function GET(req: NextRequest) {
                 day,
                 flagMetrices: dayMetrics,
             }));
-
             const response = {
                 ...project[0],
                 features: projectFeatures,
                 analytics,
             };
-            
+
             return NextResponse.json(response);
         }
         const allProjects = await db.select()
             .from(projects)
             .where(eq(projects?.userId, userData?.id));
-      
+
         return NextResponse.json(allProjects);
     } catch (err) {
         return NextResponse.json({ error: "Failed to Create Project" }, { status: 500 });

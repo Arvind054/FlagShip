@@ -1,5 +1,5 @@
 import { evaluateRules } from "@/lib/evaluateRules";
-import { radisClient } from "@/lib/radis";
+//import { radisClient } from "@/lib/radis";
 import { isInRollout } from "@/lib/rolloutPercenatge";
 import { db } from "@/src/DB";
 import { featureEnvironments, features, projects } from "@/src/DB/schema";
@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
     };
 
     try {
-        const { apiKey, featureKey, environment, user } = await req.json();
+        const body = await req.json();
+        const { apiKey, featureKey, environment, user } = body;
         if (!featureKey || !apiKey) {
             throw new Error("Feature Key Not found");
 
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
         const cacheKey = `flag:${apiKey}:${featureKey}:${environment}`;
         flagMetricesData.flagKey = featureKey;
         let config;
-        try {
+      /*  try {
             const cached = await radisClient.get(cacheKey);
             if (cached) {
                 config = JSON.parse(cached);
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
         } catch (err) {
             console.log("error occured ", err);
         }
+            */
         // Validation for feature ->project
         if (!config) {
             const result = await db
@@ -80,12 +82,13 @@ export async function POST(req: NextRequest) {
             config = result[0];
 
             // Cache config only
-        
+        /*
             try {
                 await radisClient.set(cacheKey,JSON.stringify(config),{EX:300,});
             } catch (err) {
                 console.error("Redis set failed:", err);
             }
+                */
         }
                 
         if (!config.status) {
