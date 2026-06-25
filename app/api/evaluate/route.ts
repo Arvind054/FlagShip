@@ -1,11 +1,23 @@
 import { evaluateRules } from "@/lib/evaluateRules";
-import { redisClient } from "@/lib/radis";
+import { redis } from "@/lib/radis";
 import { isInRollout } from "@/lib/rolloutPercenatge";
 import { db } from "@/src/DB";
 import { featureEnvironments, features, projects } from "@/src/DB/schema";
 import updateFlagMetrices from "@/utils/flagMetrices";
 import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+
+type FeatureRule = {
+    field: string;
+    operator: string;
+    value: any;
+};
+
+type FeatureConfig = {
+    status: boolean | null;
+    rolloutPercentage: number | null;
+    rules: FeatureRule[] | null;
+};
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -28,6 +40,7 @@ export async function POST(req: NextRequest) {
     };
 
     try {
+        const t0 = performance.now();
         const body = await req.json();
         const { apiKey, featureKey, environment, user } = body;
         if (!featureKey || !apiKey) {
@@ -38,19 +51,18 @@ export async function POST(req: NextRequest) {
         // Checking for Cache
         const cacheKey = `flag:${apiKey}:${featureKey}:${environment}`;
         flagMetricesData.flagKey = featureKey;
-        let config;
+        let config: FeatureConfig | null = null;
        
-        if(redisClient.isReady){
         try {
-            const cached = await redisClient.get(cacheKey);
+            const cached = await redis.get<FeatureConfig>(cacheKey);
             if (cached) {
-                config = JSON.parse(cached);
+                config = typeof cached === "string" ? JSON.parse(cached) : cached;
                 flagMetricesData.isCacheHits = true;
             }
         } catch (err) {
-            console.log("error occured ", err);
+            console.log("Error getting Cached Key", err);
         }
-       }
+       
         // Validation for feature ->project
         if (!config) {
             const result = await db
@@ -84,13 +96,15 @@ export async function POST(req: NextRequest) {
             config = result[0];
 
             // Cache config only
-        if(redisClient.isReady){
             try {
-                await redisClient.set(cacheKey,JSON.stringify(config),{EX:300,});
+                await redis.set(cacheKey, JSON.stringify(config), { ex: 300 });
             } catch (err) {
                 console.error("Redis set failed:", err);
             }
-         }
+        }
+
+        if (!config) {
+            throw new Error("Feature config not found");
         }
                 
         if (!config.status) {
@@ -119,7 +133,9 @@ export async function POST(req: NextRequest) {
           flagMetricesData.isEnabled = true;
          flagMetricesData.evaluationTime = new Date();
          flagMetricesData.timeTakenToEval = Date.now() - startTime;
+        // console.log("Time before insertion: ", performance.now()-t0);
          await updateFlagMetrices(flagMetricesData);
+        // console.log("Time after insertion: ", performance.now()-t0);
         return NextResponse.json({ enabled: true }, { headers: corsHeaders });
 
     } catch (err) {
