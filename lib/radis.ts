@@ -1,10 +1,11 @@
+import { Redis } from '@upstash/redis';
 import IORedis, { type RedisOptions } from "ioredis";
 
 function createConnectionOptions(): RedisOptions {
-    const redisUrl = process.env.UPSTASH_REDIS_URL;
+    const redisUrl = process.env.UPSTASH_REDIS_TCP_URL;
 
     if (!redisUrl) {
-        throw new Error("UPSTASH_REDIS_URL is not defined");
+        throw new Error("UPSTASH_REDIS_TCP_URL is not defined");
     }
 
     const parsedUrl = new URL(redisUrl);
@@ -31,6 +32,8 @@ function createConnectionOptions(): RedisOptions {
 
 export const connection = createConnectionOptions();
 
-export const redis = new IORedis(process.env.UPSTASH_REDIS_URL!, {
-    maxRetriesPerRequest: null,
-});
+export const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+})
+

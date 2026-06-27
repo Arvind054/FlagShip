@@ -6,6 +6,7 @@ import { featureEnvironments, features, projects } from "@/src/DB/schema";
 import updateFlagMetrices from "@/utils/flagMetrices";
 import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { addToAnalyticsQueue } from "@/lib/analyticsQueues";
 
 type FeatureRule = {
     field: string;
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
                 flagMetricesData.isEnabled = false;
                 flagMetricesData.evaluationTime = new Date();
                 flagMetricesData.timeTakenToEval = Date.now() - startTime;
-                await updateFlagMetrices(flagMetricesData);
+                addToAnalyticsQueue(flagMetricesData);
                 return NextResponse.json({ enabled: false }, { headers: corsHeaders });
             }
 
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
 
             // Cache config only
             try {
-                await redis.set(cacheKey, JSON.stringify(config), "EX", 300);
+                await redis.set(cacheKey, JSON.stringify(config), {ex :3000} );
             } catch (err) {
                 console.error("Redis set failed:", err);
             }
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
               flagMetricesData.isEnabled = false;
               flagMetricesData.evaluationTime = new Date();
               flagMetricesData.timeTakenToEval = Date.now() - startTime;
-              await updateFlagMetrices(flagMetricesData);
+               addToAnalyticsQueue(flagMetricesData);
             return NextResponse.json({ enabled: false }, { headers: corsHeaders });
         }
 
@@ -119,7 +120,7 @@ export async function POST(req: NextRequest) {
              flagMetricesData.isEnabled = false;
              flagMetricesData.evaluationTime = new Date();
              flagMetricesData.timeTakenToEval = Date.now() - startTime;
-             await updateFlagMetrices(flagMetricesData);
+             addToAnalyticsQueue(flagMetricesData);
             return NextResponse.json({ enabled: false }, { headers: corsHeaders });
         }
 
@@ -127,14 +128,14 @@ export async function POST(req: NextRequest) {
              flagMetricesData.isEnabled = false;
             flagMetricesData.evaluationTime = new Date();
             flagMetricesData.timeTakenToEval = Date.now() - startTime;
-            await updateFlagMetrices(flagMetricesData);
+            addToAnalyticsQueue(flagMetricesData);
             return NextResponse.json({ enabled: false }, { headers: corsHeaders });
         }
           flagMetricesData.isEnabled = true;
          flagMetricesData.evaluationTime = new Date();
          flagMetricesData.timeTakenToEval = Date.now() - startTime;
         // console.log("Time before insertion: ", performance.now()-t0);
-         await updateFlagMetrices(flagMetricesData);
+         addToAnalyticsQueue(flagMetricesData);
         // console.log("Time after insertion: ", performance.now()-t0);
         return NextResponse.json({ enabled: true }, { headers: corsHeaders });
 

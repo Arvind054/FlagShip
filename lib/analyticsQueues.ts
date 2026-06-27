@@ -7,9 +7,9 @@ export const analyticsQueue = new Queue("Flagship_Analytics_Events", {
 });
 
 export const addToAnalyticsQueue = async (analyticsData: any)=>{
-      try{
-        await analyticsQueue.add("Flag_Analytics", JSON.stringify(analyticsData))
+  try{
+    await analyticsQueue.add("Flag_Analytics", JSON.stringify(analyticsData))
       }catch(err){
-        console.log("Error Adding to Queue.");
+        console.log("Error Adding to Queue.", err);
       }
 }
