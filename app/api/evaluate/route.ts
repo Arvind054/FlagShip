@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         let config: FeatureConfig | null = null;
        
         try {
-            const cached = await redis.get<FeatureConfig>(cacheKey);
+            const cached = await redis.get(cacheKey);
             if (cached) {
                 config = typeof cached === "string" ? JSON.parse(cached) : cached;
                 flagMetricesData.isCacheHits = true;
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
             // Cache config only
             try {
-                await redis.set(cacheKey, JSON.stringify(config), { ex: 300 });
+                await redis.set(cacheKey, JSON.stringify(config), "EX", 300);
             } catch (err) {
                 console.error("Redis set failed:", err);
             }
