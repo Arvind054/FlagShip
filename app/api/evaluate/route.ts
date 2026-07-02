@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
          flagMetricesData.isEnabled = false;
         flagMetricesData.evaluationTime = new Date();
         flagMetricesData.timeTakenToEval = Date.now() - startTime;
-        await updateFlagMetrices(flagMetricesData);
+        addToAnalyticsQueue(flagMetricesData);
         return NextResponse.json({ enabled: false }, { headers: corsHeaders });
     }
 }

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "worker:analytics": "tsx workers/analyticsWorker.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
@@ -23,7 +24,7 @@
     "bullmq": "^5.79.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.1",
     "ioredis": "^5.11.1",
     "lucide-react": "^0.460.0",
@@ -45,6 +46,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5"
   }
 }
