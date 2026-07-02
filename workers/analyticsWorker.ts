@@ -12,6 +12,7 @@ const worker = new Worker("Flagship_Analytics_Events", async(job)=>{
           console.log("Inserted Successfully ✅", job.id);
       }catch(err){
          console.log("Error while inserting metrices", err);
+          throw err;
       }
 
 }, 
@@ -28,4 +29,7 @@ worker.on("completed", (job)=>{
 
 worker.on("failed", (job,err)=>{
     console.log(`Failled to Complete: `, err);
-})
+});
+worker.on("error", (err)=>{
+    console.error(`Worker Error: `, err);
+});
