@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { Redis } from '@upstash/redis';
 import IORedis, { type RedisOptions } from "ioredis";
 
