@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
 
             // Cache config only
             try {
-                await redis.set(cacheKey, JSON.stringify(config), {ex :3000} );
+                await redis.set(cacheKey, JSON.stringify(config));
             } catch (err) {
                 console.error("Redis set failed:", err);
             }

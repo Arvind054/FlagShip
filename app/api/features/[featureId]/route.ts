@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
+import { redis } from "@/lib/radis";
 import { db } from "@/src/DB";
-import { auditLogs, featureEnvironments, features, flagMetrices, user } from "@/src/DB/schema";
+import { auditLogs, featureEnvironments, features, flagMetrices, projects, user } from "@/src/DB/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -70,12 +71,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ fe
         
         // Get the feature to get projectId for audit log
         const [feature] = await db
-            .select()
+            .select({ key: features.key, apiKey: projects.apiKey, projectId: features.projectId })
             .from(features)
+            .innerJoin(projects, eq(features.projectId, projects.id))
             .where(eq(features.id, featureId))
             .limit(1);
         
         if (feature?.projectId) {
+            try {
+                await redis.set(
+                    `flag:${feature.apiKey}:${feature.key}:${environment}`,
+                    JSON.stringify({
+                        status: updated[0]?.status ?? null,
+                        rolloutPercentage: updated[0]?.rolloutPercentage ?? 0,
+                        rules: updated[0]?.rules ?? null,
+                    }),
+                );
+            } catch (err) {
+                console.error("Redis feature cache update failed:", err);
+            }
+
             // Determine action type
             let actionType = 'Environment Updated';
             if (status !== undefined && rolloutPercentage === undefined && rules === undefined) {

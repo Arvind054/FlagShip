@@ -1,9 +1,10 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/src/DB";
-import { featureEnvironments, features, user, auditLogs } from "@/src/DB/schema";
+import { featureEnvironments, features, user, auditLogs, projects } from "@/src/DB/schema";
 import { eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { redis } from "@/lib/radis";
 
 // Function to create a New Feature
 export async function POST(req: NextRequest){
@@ -34,6 +35,23 @@ export async function POST(req: NextRequest){
             {featureId, environment: "staging"},
             {featureId, environment: "prod"}
            ]);
+                     const [project] = await db
+                         .select({ apiKey: projects.apiKey })
+                         .from(projects)
+                         .where(eq(projects.id, projectId))
+                         .limit(1);
+                     if (project) {
+                         try {
+                             await Promise.all(["dev", "staging", "prod"].map((environment) =>
+                                 redis.set(
+                                     `flag:${project.apiKey}:${key}:${environment}`,
+                                     JSON.stringify({ status: null, rolloutPercentage: 0, rules: null }),
+                                 ),
+                             ));
+                         } catch (err) {
+                             console.error("Redis feature cache seed failed:", err);
+                         }
+                     }
          const log = await db.insert(auditLogs).values({
             projectId,
             featureId,
