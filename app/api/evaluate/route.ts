@@ -49,9 +49,49 @@ export async function POST(req: NextRequest) {
 
         }
 
-        // Checking for Cache
-        const cacheKey = `flag:${apiKey}:${featureKey}:${environment}`;
         flagMetricesData.flagKey = featureKey;
+        // Cache Checking for user and flag result.
+        
+        const userCacheKey = user?.id
+            ? `flag-user:${apiKey}:${featureKey}:${environment}:${user.id}`
+            : null;
+
+        const cacheUserResult = async (enabled: boolean) => {
+            if (!userCacheKey) {
+                return;
+            }
+
+            try {
+                await redis.set(userCacheKey, JSON.stringify({ enabled }));
+            } catch (err) {
+                console.error("Redis user result cache set failed:", err);
+            }
+        };
+
+        if (userCacheKey) {
+            try {
+                const cachedUserResult = await redis.get(userCacheKey);
+                if (cachedUserResult !== null && cachedUserResult !== undefined) {
+                    const result = typeof cachedUserResult === "string"
+                        ? JSON.parse(cachedUserResult)
+                        : cachedUserResult;
+
+                    if (typeof result?.enabled === "boolean") {
+                        flagMetricesData.isCacheHits = true;
+                        flagMetricesData.isEnabled = result.enabled;
+                        flagMetricesData.evaluationTime = new Date();
+                        flagMetricesData.timeTakenToEval = Date.now() - startTime;
+                        addToAnalyticsQueue(flagMetricesData);
+                        return NextResponse.json(result, { headers: corsHeaders });
+                    }
+                }
+            } catch (err) {
+                console.log("Error getting Cached User Result", err);
+            }
+        }
+
+        // Check the feature configuration cache.
+        const cacheKey = `flag:${apiKey}:${featureKey}:${environment}`;
         let config: FeatureConfig | null = null;
        
         try {
@@ -109,6 +149,7 @@ export async function POST(req: NextRequest) {
         }
                 
         if (!config.status) {
+              await cacheUserResult(false);
               flagMetricesData.isEnabled = false;
               flagMetricesData.evaluationTime = new Date();
               flagMetricesData.timeTakenToEval = Date.now() - startTime;
@@ -117,6 +158,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (config.rules && !evaluateRules(config.rules, user)) {
+               await cacheUserResult(false);
              flagMetricesData.isEnabled = false;
              flagMetricesData.evaluationTime = new Date();
              flagMetricesData.timeTakenToEval = Date.now() - startTime;
@@ -125,12 +167,14 @@ export async function POST(req: NextRequest) {
         }
 
         if (!isInRollout(user?.id, config.rolloutPercentage)) {
+               await cacheUserResult(false);
              flagMetricesData.isEnabled = false;
             flagMetricesData.evaluationTime = new Date();
             flagMetricesData.timeTakenToEval = Date.now() - startTime;
             addToAnalyticsQueue(flagMetricesData);
             return NextResponse.json({ enabled: false }, { headers: corsHeaders });
         }
+         await cacheUserResult(true);
           flagMetricesData.isEnabled = true;
          flagMetricesData.evaluationTime = new Date();
          flagMetricesData.timeTakenToEval = Date.now() - startTime;
